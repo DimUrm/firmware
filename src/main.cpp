@@ -14,7 +14,13 @@
 #include "AudioFileSourceSPIFFS.h"
 #include "AudioFileSourceID3.h"
 #include "AudioGeneratorMP3.h"
-#include "AudioOutputI2SNoDAC.h"
+#include "AudioGeneratorWAV.h"
+#include "AudioOutputI2S.h"
+
+AudioGeneratorMP3 *mp3;
+AudioGeneratorWAV *wav;
+AudioFileSourceSPIFFS *file;
+AudioOutputI2S *out;
 
 #define LED1 13
 
@@ -27,9 +33,57 @@ const int offset = 0x2C;
 char data[800];
 char stereoData[1600];
 
+void playMP3(){
+  Serial.println("playWAV2"); 
+  file = new AudioFileSourceSPIFFS("/sound.mp3");
+  if (!file) {
+    Serial.print("file is null");
+    while (1);
+  }
+  Serial.print("file size:"); Serial.println( file->getSize() );
+
+  out = new AudioOutputI2S();
+  out->SetPinout(PIN_I2S_BCLK, PIN_I2S_LRC, PIN_I2S_DOUT);
+  // out->SetChannels(1);
+  // out->SetGain(0.3);
+  mp3 = new AudioGeneratorMP3();
+  mp3->begin(file, out);
+  while(mp3->isRunning()){
+    if (!mp3->loop()) mp3->stop();
+  }
+}
+
+void playWAV2(){
+  Serial.println("playWAV2"); 
+  file = new AudioFileSourceSPIFFS("/sound.wav");
+  if (!file) {
+    Serial.print("file is null");
+    while (1);
+  }
+  Serial.print("file size:"); Serial.println( file->getSize() );
+
+  out = new AudioOutputI2S();
+  out->SetPinout(PIN_I2S_BCLK, PIN_I2S_LRC, PIN_I2S_DOUT);
+  // out->SetChannels(1);
+  // out->SetGain(0.3);
+  wav = new AudioGeneratorWAV();
+  wav->begin(file, out);
+  while(wav->isRunning()){
+    if (!wav->loop()) wav->stop();
+  }
+}
+
+void dirSPIFFS(){
+  Serial.println("dir");
+  String fileName = "";
+  File dir, root = SPIFFS.open("/");  
+  while ((dir = root.openNextFile())) {
+    fileName = String(dir.name());
+    Serial.println(" " + fileName );
+  }
+}
 void playWAV() {
   Serial.println("playWAV");
-  SPIFFS.begin();
 
   // ffmpeg -i hapyou2.wav -acodec pcm_s16le -ar 44100 sound.wav
   File file = SPIFFS.open("/sound.wav");  // 44100Hz, 16bit, linear PCM
@@ -55,9 +109,8 @@ void playWAV() {
 
 void setup() {
   Serial.begin(115200);
-  
-  playWAV();
-  
+  SPIFFS.begin();
+
   pinMode(LED1, OUTPUT);
 
   pixels.begin();
@@ -65,6 +118,11 @@ void setup() {
 }
 
 void loop() {
+  dirSPIFFS();
+  
+  playMP3();
+  // playWAV();
+  // playWAV2();
 
   for(int i=0; i<NUMPIXELS; i++) {
     pixels.setPixelColor(i, pixels.Color(150, 0, 0));

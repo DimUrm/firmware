@@ -9,7 +9,7 @@ void I2S_Init() {
     .communication_format = (i2s_comm_format_t)(I2S_COMM_FORMAT_I2S | I2S_COMM_FORMAT_I2S_MSB),
     .intr_alloc_flags = 0,
     .dma_buf_count = 16,
-    .dma_buf_len = 60
+    .dma_buf_len = 64
   };
 
   i2s_pin_config_t pin_config = {
