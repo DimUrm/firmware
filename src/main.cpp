@@ -35,6 +35,7 @@ struct DEVICE_STATUS {
 DEVICE_STATUS status;
 
 #define DEVICE_STATUS_MODE_DEFAULT "default"
+#define DEVICE_STATUS_MODE_RESET    "reset"
 #define DEVICE_STATUS_MODE_DIR     "dir"
 #define DEVICE_STATUS_MODE_PLAY    "play" 
 #define DEVICE_STATUS_MODE_COLOR   "color"
@@ -177,6 +178,13 @@ void setup() {
   Serial.print("WiFi connected, IP = "); Serial.println(WiFi.localIP());
 
   // OSC受信設定
+  OscWiFi.subscribe(bind_port, "/status/reset",
+    [](const OscMessage& m)
+    {
+      status.mode = DEVICE_STATUS_MODE_RESET;
+      Serial.printf("/status/reset\n");
+    }
+  );
   OscWiFi.subscribe(bind_port, "/status/dir",
     [](const OscMessage& m)
     {
@@ -227,10 +235,18 @@ void loop() {
   Serial.println("loop");
 
   OscWiFi.update();
-  if ( strcmp(status.mode.c_str(),DEVICE_STATUS_MODE_DIR) == 0) {
+  if ( strcmp(status.mode.c_str(),DEVICE_STATUS_MODE_RESET) == 0) {
+    status.mode = DEVICE_STATUS_MODE_DEFAULT;
+    wifiManager.resetSettings();
+    ESP.restart();
+  }
+  else if ( strcmp(status.mode.c_str(),DEVICE_STATUS_MODE_DIR) == 0) {
+    status.mode = DEVICE_STATUS_MODE_DEFAULT;
     dirSPIFFS();
   }
   else if ( strcmp(status.mode.c_str(),DEVICE_STATUS_MODE_PLAY) == 0) {
+    status.mode = DEVICE_STATUS_MODE_DEFAULT;
+
     // TODO status.path の内容で 処理変更
     //SPIFFS mp3 ファイル 再生
     playMP3(status.path.c_str());
@@ -241,6 +257,7 @@ void loop() {
     //TODO ダウンロード
     // playURL(status.path.c_str());
   } else if ( strcmp(status.mode.c_str(),DEVICE_STATUS_MODE_COLOR) == 0) {
+    status.mode = DEVICE_STATUS_MODE_DEFAULT;
     // LED 色設定
     int rgb[3];
     rgbStr2rgbInt(status.color[0].c_str(),rgb);

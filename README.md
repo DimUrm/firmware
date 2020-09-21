@@ -74,6 +74,13 @@ OSC対応アプリから各制御する場合の参考
 |IPアドレス| シリアルに出力される |
 |ポート| 54345 |
 
+## WiFi等をリセット
+
+```
+/status/reset
+例) /status/reset
+```
+
 ## SPIFFS DIR
 
 ```
