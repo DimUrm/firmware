@@ -8,17 +8,18 @@ TouchDesigner や OSC 対応 Androidアプリ等から操作できます。
 
 ESP32 for Arduino互換ボード なので 独自ファームの開発も可能で、スマホアプリ連動やスマートスピーカー連動やSlack連動等拡張にも対応できます。
 
-![写真1](./res/dummy.png)
+![写真1](./doc/connecteddoll.jpeg)
 
 # 環境
 
 ## ハードウェア構成　
+[ConnectedDoll/pcb](https://github.com/ConnectedDoll/pcb)
+![写真1](./doc/board.jpeg)
+![基板](/ConnectedDoll/pcb/res/circuit.png)
 
 ## 基板 や 部品
 - [FTDI USBシリアル変換アダプター Rev.2](https://www.switch-science.com/catalog/2782/)
 - [PCB](https://github.com/ConnectedDoll/pcb)
-
-![基板](/ConnectedDoll/pcb/res/circuit.png)
 
 # 開発環境
 - [Visual Studio Code](https://marketplace.visualstudio.com/)  
