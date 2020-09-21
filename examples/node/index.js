@@ -8,8 +8,9 @@ console.log("send_host:port " + send_host + ":" + send_port);
 const osc = require('node-osc');
 const client_send = new osc.Client(send_host, send_port);
 function send() {
-    client_send.send('/status/reset');
-    console.log('/status/reset');
+    // Wi-Fi 設定の初期化をする場合
+    //client_send.send('/status/reset');
+    //console.log('/status/reset');
 
     client_send.send('/status/dir');
     console.log('/status/dir');

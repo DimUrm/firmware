@@ -63,7 +63,8 @@ SPIFFS 領域に `data` フォルダ内容を書き込む
 # WiFi 設定
 初回起動時のみ `ConnectedDoll` で アクセスポイントととして SSID が WiFi 接続待ち状態となる。  
 インターネット接続可能なルータ等の SSID,パスワードを設定し完了すると OSC 操作可能なモードに移行される  
-![図wifi](./doc/wifi.png)  
+![図wifi1](./doc/wifi1.jpg)  
+![図wifi2](./doc/wifi2.jpg)  
 
 # OSC コマンド
 OSC対応アプリから各制御する場合の参考  
