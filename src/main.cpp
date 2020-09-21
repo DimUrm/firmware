@@ -34,7 +34,8 @@ struct DEVICE_STATUS {
 };
 DEVICE_STATUS status;
 
-#define DEVICE_STATUS_MODE_DEFAULT "default" 
+#define DEVICE_STATUS_MODE_DEFAULT "default"
+#define DEVICE_STATUS_MODE_DIR     "dir"
 #define DEVICE_STATUS_MODE_PLAY    "play" 
 #define DEVICE_STATUS_MODE_COLOR   "color"
 
@@ -73,11 +74,12 @@ void playMP3(const char* spiffsFile){
     while (1);
   }
   Serial.print("file size:"); Serial.println( file->getSize() );
+  if (file->getSize() == 0) return;
 
   out = new AudioOutputI2S();
   out->SetPinout(PIN_I2S_BCLK, PIN_I2S_LRC, PIN_I2S_DOUT);
   // out->SetChannels(1);
-  // out->SetGain(0.3);
+  out->SetGain(status.volume);
   mp3 = new AudioGeneratorMP3();
   mp3->begin(file, out);
   while(mp3->isRunning()){
@@ -93,6 +95,7 @@ void playWAV2(const char* spiffsFile){
     while (1);
   }
   Serial.print("file size:"); Serial.println( file->getSize() );
+  if (file->getSize() == 0) return;
 
   out = new AudioOutputI2S();
   out->SetPinout(PIN_I2S_BCLK, PIN_I2S_LRC, PIN_I2S_DOUT);
@@ -174,6 +177,13 @@ void setup() {
   Serial.print("WiFi connected, IP = "); Serial.println(WiFi.localIP());
 
   // OSC受信設定
+  OscWiFi.subscribe(bind_port, "/status/dir",
+    [](const OscMessage& m)
+    {
+      status.mode = DEVICE_STATUS_MODE_DIR;
+      Serial.printf("/status/dir\n");
+    }
+  );  
   OscWiFi.subscribe(bind_port, "/status/volume",
     [](const OscMessage& m)
     {
@@ -215,9 +225,12 @@ void setup() {
 void loop() {
   delay(500);
   Serial.println("loop");
-  OscWiFi.update();
 
-  if ( strcmp(status.mode.c_str(),DEVICE_STATUS_MODE_PLAY) == 0) {
+  OscWiFi.update();
+  if ( strcmp(status.mode.c_str(),DEVICE_STATUS_MODE_DIR) == 0) {
+    dirSPIFFS();
+  }
+  else if ( strcmp(status.mode.c_str(),DEVICE_STATUS_MODE_PLAY) == 0) {
     // TODO status.path の内容で 処理変更
     //SPIFFS mp3 ファイル 再生
     playMP3(status.path.c_str());
@@ -234,13 +247,14 @@ void loop() {
     pixels.setPixelColor(0, pixels.Color(rgb[0], rgb[1], rgb[2]));
 
     rgbStr2rgbInt(status.color[1].c_str(),rgb);
-    pixels.setPixelColor(0, pixels.Color(rgb[0], rgb[1], rgb[2]));
+    pixels.setPixelColor(1, pixels.Color(rgb[0], rgb[1], rgb[2]));
 
     rgbStr2rgbInt(status.color[2].c_str(),rgb);
-    pixels.setPixelColor(0, pixels.Color(rgb[0], rgb[1], rgb[2]));
+    pixels.setPixelColor(2, pixels.Color(rgb[0], rgb[1], rgb[2]));
 
     rgbStr2rgbInt(status.color[3].c_str(),rgb);
-    pixels.setPixelColor(0, pixels.Color(rgb[0], rgb[1], rgb[2]));
+    pixels.setPixelColor(3, pixels.Color(rgb[0], rgb[1], rgb[2]));
+    pixels.show();
   }
 
   /*

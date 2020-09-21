@@ -73,11 +73,11 @@ OSC対応アプリから各制御する場合の参考
 |IPアドレス| シリアルに出力される |
 |ポート| 54345 |
 
-## ボリューム変更
+## SPIFFS DIR
 
 ```
-/status/volume [volume(0.0 - 1.0f)]
-例) /status/volume 0.3f
+/status/dir
+例) /status/dir
 ```
 
 ## ファイル再生
@@ -85,13 +85,20 @@ OSC対応アプリから各制御する場合の参考
 ```
 /status/play [path]
 例) SPIFFS の sound.mp3 ファイル再生  
-/status/play "./sound.mp3"
+/status/play "/sound.mp3"
 
 例) SPIFFS の sound.wav ファイル再生  
-/status/play "./sound.wav"
+/status/play "/sound.wav"
 
-例) URL 指定 mp3ファイル再生  
+例) [対応予定] URL 指定 mp3ファイル再生
 /status/play "https://file-examples-com.github.io/uploads/2017/11/file_example_MP3_700KB.mp3"
+```
+
+## ボリューム変更
+
+```
+/status/volume [volume(0.0 - 1.0f)]
+例) /status/volume 0.3f
 ```
 
 ## LED 色設定
@@ -102,6 +109,50 @@ OSC対応アプリから各制御する場合の参考
 /status/color "255,255,0" "255,255,0" "255,255,0" "255,255,0"
 ```
 
+## OSC 送信サンプル
+node.js 製 OSC コマンド送信 サンプル
+
+```
+cd examples/node
+npm install
+npm run start 192.168.86.44
+
+npm run start [送信先IP]
+```
+
+```
+"use strict"
 
 
+const send_host = process.argv[2];
+const send_port = 54345;
 
+console.log("send_host:port " + send_host + ":" + send_port);
+
+const osc = require('node-osc');
+function send() {
+    client_send.send('/status/dir');
+    console.log('/status/dir');
+
+    client_send.send('/status/volume', 0.3);
+    console.log('/status/volume');
+
+    // client_send.send('/status/play', "/sound.mp3");
+    // console.log('/status/play');
+    
+    // client_send.send('/status/play', "/sound.wav");
+    // console.log('/status/play');
+
+    // client_send.send('/status/play', "https://file-examples-com.github.io/uploads/2017/11/file_example_MP3_700KB.mp3");
+
+    client_send.send('/status/color', "255,0,0", "0,0,255", "0,255,0", "255,0,255");
+    console.log('/status/color');
+
+    setTimeout( function() {
+        client_send.send('/status/color', "0,0,0", "0,0,0", "0,0,0", "0,0,0");
+        console.log('/status/color');    
+    },1000);
+}
+
+setInterval(send, 5000);
+```
