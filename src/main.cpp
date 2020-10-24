@@ -18,6 +18,9 @@
 #include "AudioGeneratorWAV.h"
 #include "AudioOutputI2S.h"
 
+#include "FileDownloader.h"
+#include "SpiffsUtil.h"
+
 // WiFi 設定
 WiFiManager wifiManager;
 
@@ -35,9 +38,10 @@ struct DEVICE_STATUS {
 DEVICE_STATUS status;
 
 #define DEVICE_STATUS_MODE_DEFAULT "default"
-#define DEVICE_STATUS_MODE_RESET    "reset"
+#define DEVICE_STATUS_MODE_RESET   "reset"
 #define DEVICE_STATUS_MODE_DIR     "dir"
-#define DEVICE_STATUS_MODE_PLAY    "play" 
+#define DEVICE_STATUS_MODE_PLAY_MP3    "play_mp3" 
+#define DEVICE_STATUS_MODE_PLAY_URL_MP3    "play_url_mp3" 
 #define DEVICE_STATUS_MODE_COLOR   "color"
 
 AudioGeneratorMP3 *mp3;
@@ -55,6 +59,15 @@ const int offset = 0x2C;
 char data[800];
 char stereoData[1600];
 
+SpiffsUtil spiffsUtil;
+
+FileDownloader fileDownloader;
+// ファイルダウンロード時の読み込みサイズ
+#define DOWNLOAD_FILE_SIZE 512
+uint8_t downloadFileData[DOWNLOAD_FILE_SIZE];
+// ダウンロードするファイルへつける拡張子
+#define AUDIO_FILE_EXTENSION "mp3"
+
 void configModeCallback (WiFiManager *myWiFiManager) {
   Serial.println("Entered config mode");
   Serial.println(WiFi.softAPIP());
@@ -67,8 +80,42 @@ void setupWiFi() {
   wifiManager.autoConnect("ConnectedDoll");
 }
 
-void playMP3(const char* spiffsFile){
-  Serial.println("playWAV2"); 
+const char* downloadFile(const char* url) { 
+  Serial.printf("downloadFile: %s\n", url);
+  fileDownloader.open(url);
+  // URLからハッシュファイル名生成
+  const char* fileName = fileDownloader.getHashFileName(AUDIO_FILE_EXTENSION);
+  Serial.printf("fileName: %s\n", fileName);
+  // sdUtil.remove(fileName);
+  // 既にあったらダウンロード処理をしない
+  if (spiffsUtil.exists(fileName)){
+    fileDownloader.close();
+    return fileName;
+  }
+
+  File fw = spiffsUtil.open(fileName, FILE_WRITE);
+  if (!fw) {
+    Serial.println(F("There was an error opening the file for writing"));
+    while (1);
+  }
+  uint32_t size = fileDownloader.getSize();
+  uint32_t pos = 0;
+  while (pos < size){
+    int r = fileDownloader.read(downloadFileData, DOWNLOAD_FILE_SIZE);
+    pos = fileDownloader.getPos();
+    // Serial.printf(" read:%d pos:%d size:%d\n", r, pos, size);
+    // SPIFFS にファイル書き込み
+    int w = spiffsUtil.write(downloadFileData, r);
+  }
+  Serial.printf(" pos:%d size:%d\n", pos, size);
+  spiffsUtil.close();
+  fileDownloader.close();
+
+  return fileName;
+}
+
+void playMp3(const char* spiffsFile){
+  Serial.println("playMp3"); 
   file = new AudioFileSourceSPIFFS(spiffsFile);
   if (!file) {
     Serial.print("file is null");
@@ -87,62 +134,11 @@ void playMP3(const char* spiffsFile){
     if (!mp3->loop()) mp3->stop();
   }
 }
-
-void playWAV2(const char* spiffsFile){
-  Serial.println("playWAV2"); 
-  file = new AudioFileSourceSPIFFS(spiffsFile);
-  if (!file) {
-    Serial.print("file is null");
-    while (1);
-  }
-  Serial.print("file size:"); Serial.println( file->getSize() );
-  if (file->getSize() == 0) return;
-
-  out = new AudioOutputI2S();
-  out->SetPinout(PIN_I2S_BCLK, PIN_I2S_LRC, PIN_I2S_DOUT);
-  // out->SetChannels(1);
-  out->SetGain(status.volume);
-  wav = new AudioGeneratorWAV();
-  wav->begin(file, out);
-  while(wav->isRunning()){
-    if (!wav->loop()) wav->stop();
-  }
-}
-
-void dirSPIFFS(){
-  Serial.println("dir");
-  String fileName = "";
-  File dir, root = SPIFFS.open("/");  
-  while ((dir = root.openNextFile())) {
-    fileName = String(dir.name());
-    Serial.println(" " + fileName );
-  }
-}
-
-void playWAV(const char* spiffsFile) {
-  Serial.println("playWAV");
-
-  // ffmpeg -i hapyou2.wav -acodec pcm_s16le -ar 44100 sound.wav
-  // File file = SPIFFS.open("/sound.wav");  // 44100Hz, 16bit, linear PCM
-  File file = SPIFFS.open(spiffsFile);
-  file.seek(22);
-  int ch = file.read();
-  file.seek(offset);
-  I2S_Init();
-  while (file.readBytes(data, sizeof(data))) {
-    if (ch == 2) I2S_Write(data, sizeof(data));
-    else if (ch == 1) {
-      for (int i = 0; i < sizeof(data); ++i) 
-      {
-        stereoData[4 * (i / 2) + i % 2] = data[i];
-        stereoData[4 * (i / 2) + i % 2 + 2] = data[i];
-      }
-      I2S_Write(stereoData, sizeof(stereoData));
-    }
-  }
-  file.close();
-  for (int i = 0; i < sizeof(data); ++i) data[i] = 0; // to prevent buzzing
-  for (int i = 0; i < 5; ++i) I2S_Write(data, sizeof(data));
+// URL指定されたMP3ファイルをダウンロードして再生する
+void playUrlMP3(const char* url){
+  // SPIFFS にファイルをダウンロードする
+  const char* fireName = downloadFile(url);
+  playMp3(fireName);
 }
 
 //ステータス初期化
@@ -162,7 +158,9 @@ void rgbStr2rgbInt(const char* src, int rgb[]) {
 
 void setup() {
   Serial.begin(115200);
-  SPIFFS.begin();
+  
+  // SPIFFS 初期化
+  spiffsUtil.begin();
 
   pinMode(LED1, OUTPUT);
 
@@ -201,15 +199,25 @@ void setup() {
     }
   );
 
-  // ファイル再生
-  OscWiFi.subscribe(bind_port, "/status/play",
+  // SPIFFS MP3ファイル再生
+  OscWiFi.subscribe(bind_port, "/status/play/mp3",
     [](const OscMessage& m)
     {
-      status.mode = DEVICE_STATUS_MODE_PLAY;
+      status.mode = DEVICE_STATUS_MODE_PLAY_MP3;
       status.path = m.arg<String>(0);
-      Serial.printf("/status/play %s\n", status.path.c_str());
+      Serial.printf("/status/play/mp3 %s\n", status.path.c_str());
     }
   );  
+
+  // URL MP3ファイル再生
+  OscWiFi.subscribe(bind_port, "/status/play/url/mp3",
+    [](const OscMessage& m)
+    {
+      status.mode = DEVICE_STATUS_MODE_PLAY_URL_MP3;
+      status.path = m.arg<String>(0);
+      Serial.printf("/status/play/url/mp3 %s\n", status.path.c_str());
+    }
+  );
 
   // LED カラー設定
   OscWiFi.subscribe(bind_port, "/status/color",
@@ -231,9 +239,9 @@ void setup() {
 }
 
 void loop() {
-  delay(500);
+  delay(200);
   Serial.println("loop");
-
+  Serial.print("WiFi connected, IP = "); Serial.println(WiFi.localIP());
   OscWiFi.update();
   if ( strcmp(status.mode.c_str(),DEVICE_STATUS_MODE_RESET) == 0) {
     status.mode = DEVICE_STATUS_MODE_DEFAULT;
@@ -242,20 +250,17 @@ void loop() {
   }
   else if ( strcmp(status.mode.c_str(),DEVICE_STATUS_MODE_DIR) == 0) {
     status.mode = DEVICE_STATUS_MODE_DEFAULT;
-    dirSPIFFS();
+    spiffsUtil.listDir("/", 0);
   }
-  else if ( strcmp(status.mode.c_str(),DEVICE_STATUS_MODE_PLAY) == 0) {
+  else if ( strcmp(status.mode.c_str(),DEVICE_STATUS_MODE_PLAY_MP3) == 0) {
     status.mode = DEVICE_STATUS_MODE_DEFAULT;
-
-    // TODO status.path の内容で 処理変更
     //SPIFFS mp3 ファイル 再生
-    playMP3(status.path.c_str());
-    //SPIFFS wav ファイル 再生
-    // playWAV(status.path.c_str());
-    // playWAV2(status.path.c_str());
-    //URL ファイル 再生
-    //TODO ダウンロード
-    // playURL(status.path.c_str());
+    playMp3(status.path.c_str());
+  }
+  else if ( strcmp(status.mode.c_str(),DEVICE_STATUS_MODE_PLAY_URL_MP3) == 0) {
+    status.mode = DEVICE_STATUS_MODE_DEFAULT;
+    //URL ファイル 再生 ダウンロードし再生する
+    playUrlMP3(status.path.c_str());
   } else if ( strcmp(status.mode.c_str(),DEVICE_STATUS_MODE_COLOR) == 0) {
     status.mode = DEVICE_STATUS_MODE_DEFAULT;
     // LED 色設定
@@ -273,36 +278,4 @@ void loop() {
     pixels.setPixelColor(3, pixels.Color(rgb[0], rgb[1], rgb[2]));
     pixels.show();
   }
-
-  /*
-  // dirSPIFFS();
-  
-  // playMP3();
-  // playWAV();
-  // playWAV2();
-
-  pixels.setPixelColor(0, pixels.Color(150, 0, 0));
-  pixels.setPixelColor(1, pixels.Color(150, 0, 0));
-  pixels.show();
-  delay(DELAYVAL);
-
-  pixels.setPixelColor(0, pixels.Color(0, 150, 0));
-  pixels.setPixelColor(1, pixels.Color(0, 150, 0));
-  pixels.show();
-  delay(DELAYVAL);
-
-  pixels.setPixelColor(0, pixels.Color(0, 0, 150));
-  pixels.setPixelColor(1, pixels.Color(0, 0, 150));
-  pixels.show();
-  delay(DELAYVAL);
-
-  // pixels.clear();
-
-  
-  Serial.println("loop");
-  digitalWrite(LED1, HIGH);
-  delay(1000);
-  digitalWrite(LED1, LOW);
-  delay(1000);
-  */
 }
