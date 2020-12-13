@@ -1,6 +1,6 @@
 {
     "terminal.integrated.env.osx": {
-        "PATH": "/Users/nobuyukifurukawa/.platformio/penv/bin:/Users/nobuyukifurukawa/.platformio/penv:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/share/dotnet:/opt/X11/bin:~/.dotnet/tools:/Library/Apple/usr/bin:/Library/Frameworks/Mono.framework/Versions/Current/Commands",
+        "PATH": "/Users/nobuyukifurukawa/.platformio/penv/bin:/Users/nobuyukifurukawa/.platformio/penv:/Users/nobuyukifurukawa/Library/Android/sdk/platform-tools:/usr/local/opt/bison/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/share/dotnet:/opt/X11/bin:~/.dotnet/tools:/Library/Apple/usr/bin:/Library/Frameworks/Mono.framework/Versions/Current/Commands",
         "PLATFORMIO_CALLER": "vscode"
     }
 }

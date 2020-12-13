@@ -15,10 +15,9 @@ function send() {
     client_send.send('/status/dir');
     console.log('/status/dir');
     
-/*
-    client_send.send('/status/volume', 0.3);
+    client_send.send('/status/volume', 0.1);
     console.log('/status/volume');
-
+/*
     client_send.send('/status/color', "255,0,0", "0,0,255", "0,255,0", "255,0,255");
     console.log('/status/color');
 
