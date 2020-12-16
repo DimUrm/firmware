@@ -15,7 +15,7 @@ function send() {
     client_send.send('/status/dir');
     console.log('/status/dir');
     
-    client_send.send('/status/volume', 0.1);
+    client_send.send('/status/volume', 0.3);
     console.log('/status/volume');
 /*
     client_send.send('/status/color', "255,0,0", "0,0,255", "0,255,0", "255,0,255");
@@ -29,9 +29,15 @@ function send() {
     // client_send.send('/status/play/mp3', "/sound.mp3");
     // console.log('/status/play/mp3');
     
-    const mp3url = "https://file-examples-com.github.io/uploads/2017/11/file_example_MP3_700KB.mp3";
+    // const mp3url = "https://file-examples-com.github.io/uploads/2017/11/file_example_MP3_700KB.mp3";
+
+
+    // https://drive.google.com/file/d/1SxK_yc7JJ1MlQoyHZHS7xJ4pf0eh9FvC/view?usp=sharing
+    // https://drive.google.com/uc?id=1SxK_yc7JJ1MlQoyHZHS7xJ4pf0eh9FvC
+
+    const mp3url = "https://drive.google.com/uc?id=1SxK_yc7JJ1MlQoyHZHS7xJ4pf0eh9FvC";
     client_send.send('/status/play/url/mp3', mp3url);
-    console.log('/status/play/url/mp3');
+    console.log('/status/play/url/mp3', mp3url);
 }
 
 setInterval(send, 5000);

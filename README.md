@@ -121,9 +121,11 @@ node.js 製 OSC コマンド送信 サンプル
 ```
 cd examples/node
 npm install
-npm run start 192.168.86.44
+# npm run start 192.168.86.44
+# npm run start [送信先IP]
 
-npm run start [送信先IP]
+npm run start connecteddoll.local
+
 ```
 
 ```
