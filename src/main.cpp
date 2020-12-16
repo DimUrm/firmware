@@ -1,17 +1,12 @@
 #include <Arduino.h>
-#include <ESPmDNS.h>
-#include <Adafruit_NeoPixel.h>
+#include <ArduinoOSC.h>
 
 #include "SPI.h"
 #include "I2S.h"
 #include "FS.h"
 #include "SPIFFS.h"
-
-#include <WiFi.h>
-#include <WiFiClient.h>
-#include <WiFiManager.h>
-
-#include <ArduinoOSC.h>
+#include "LedUtil.h"
+#include "WifiUtil.h"
 
 #include "AudioFileSourceSPIFFS.h"
 #include "AudioFileSourceID3.h"
@@ -21,14 +16,17 @@
 #include "FileDownloader.h"
 #include "SpiffsUtil.h"
 
-// WiFi 設定
-WiFiManager wifiManager;
+#include "ESPAsyncWebServer.h"
 
+WifiUtil wifiUtil;
+// AP モード SSID
+const char* WIFI_SSID = "ConnectedDoll";
 // mDNS ホスト名
 const char* MDNS_HOST = "connecteddoll";
-
 // OSC受信 設定
-const int BIND_PORT = 54345;
+const int OSC_BIND_PORT = 54345;
+
+LedUtil ledUtil;
 
 // ステータス
 struct DEVICE_STATUS {
@@ -50,16 +48,6 @@ AudioGeneratorMP3 *mp3;
 AudioFileSourceSPIFFS *file;
 AudioOutputI2S *out;
 
-#define LED1 13
-
-#define RGB_LED 4
-#define NUMPIXELS 4
-Adafruit_NeoPixel pixels(NUMPIXELS, RGB_LED, NEO_GRB + NEO_KHZ800);
-
-const int offset = 0x2C;
-char data[800];
-char stereoData[1600];
-
 SpiffsUtil spiffsUtil;
 
 FileDownloader fileDownloader;
@@ -69,30 +57,32 @@ uint8_t downloadFileData[DOWNLOAD_FILE_SIZE];
 // ダウンロードするファイルへつける拡張子
 #define AUDIO_FILE_EXTENSION "mp3"
 
-void configModeCallback (WiFiManager *myWiFiManager) {
-  Serial.println("Entered config mode");
-  Serial.println(WiFi.softAPIP());
-  Serial.println(myWiFiManager->getConfigPortalSSID());
+const int HTTP_PORT = 80;
+AsyncWebServer webServer(HTTP_PORT);
+
+String processor(const String& var){
+  Serial.print("processor "); 
+  Serial.println(var);
+  return "";
 }
 
-void setupWiFi() {
-  wifiManager.setAPCallback(configModeCallback);
-  wifiManager.setBreakAfterConfig(true);
-  wifiManager.autoConnect("ConnectedDoll");
-}
-
-// mDNS 設定
-void setupMDNS() {
-  // TODO config.json device_id をホスト名に設定する
-  // dns-sd -B connecteddoll.local
-  if (!MDNS.begin(MDNS_HOST)) {
-      Serial.println("Error setting up MDNS responder!");
-      while(1){
-          delay(1000);
-      }
-  }
-  MDNS.addService("http", "tcp", 80);
-  MDNS.addService("osc", "udp", BIND_PORT);
+void webServerSetup() {
+  webServer.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/www/index.html", "text/html");
+  });
+  webServer.on("/index.css", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/www/index.css", "text/css");
+  });
+  webServer.on("/index.js", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/www/index.js", "text/javascript");
+  });
+  webServer.on("/300x100.png", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/www/300x100.png", "image/png");
+  });
+  webServer.on("/api", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/www/index.html", "text/html", false, processor);
+  });
+  webServer.begin();
 }
 
 const char* downloadFile(const char* url) { 
@@ -163,51 +153,23 @@ void setupStatus(){
   status.volume = 0.3f;
 }
 
-// "r,g,b" を int[3] に変換する
-void rgbStr2rgbInt(const char* src, int rgb[]) {
-  char buf[20];
-  strcpy(buf,src);
-  rgb[0] = atoi(strtok(buf, ","));
-  rgb[1] = atoi(strtok(NULL, ","));
-  rgb[2] = atoi(strtok(NULL, ","));
-}
-
-void setup() {
-  Serial.begin(115200);
-  
-  // SPIFFS 初期化
-  spiffsUtil.begin();
-
-  pinMode(LED1, OUTPUT);
-
-  pixels.begin();
-  pixels.clear();
-
-  //ステータス初期化
-  setupStatus();
-
-  // WiFi 接続設定
-  setupWiFi();  
-  Serial.print("WiFi connected, IP = "); Serial.println(WiFi.localIP());
-  // mDNS 設定
-  setupMDNS();
-
-  // OSC受信設定
-  OscWiFi.subscribe(BIND_PORT, "/status/reset",
+// OSC 初期化
+void oscWiFiSetup() {
+  OscWiFi.subscribe(OSC_BIND_PORT, "/status/reset",
     [](const OscMessage& m)
     {
       status.mode = DEVICE_STATUS_MODE_RESET;
       Serial.printf("/status/reset\n");
     }
   );
-  OscWiFi.subscribe(BIND_PORT, "/status/dir",
+  OscWiFi.subscribe(OSC_BIND_PORT, "/status/dir",
     [](const OscMessage& m)
     {
       status.mode = DEVICE_STATUS_MODE_DIR;
       Serial.printf("/status/dir\n");
     }
   );  
-  OscWiFi.subscribe(BIND_PORT, "/status/volume",
+  OscWiFi.subscribe(OSC_BIND_PORT, "/status/volume",
     [](const OscMessage& m)
     {
       float v = m.arg<float>(0);
@@ -217,7 +179,7 @@ void setup() {
   );
 
   // SPIFFS MP3ファイル再生
-  OscWiFi.subscribe(BIND_PORT, "/status/play/mp3",
+  OscWiFi.subscribe(OSC_BIND_PORT, "/status/play/mp3",
     [](const OscMessage& m)
     {
       status.mode = DEVICE_STATUS_MODE_PLAY_MP3;
@@ -227,7 +189,7 @@ void setup() {
   );  
 
   // URL MP3ファイル再生
-  OscWiFi.subscribe(BIND_PORT, "/status/play/url/mp3",
+  OscWiFi.subscribe(OSC_BIND_PORT, "/status/play/url/mp3",
     [](const OscMessage& m)
     {
       status.mode = DEVICE_STATUS_MODE_PLAY_URL_MP3;
@@ -237,7 +199,7 @@ void setup() {
   );
 
   // LED カラー設定
-  OscWiFi.subscribe(BIND_PORT, "/status/color",
+  OscWiFi.subscribe(OSC_BIND_PORT, "/status/color",
     [](const OscMessage& m)
     {
       status.mode = DEVICE_STATUS_MODE_COLOR;
@@ -255,16 +217,37 @@ void setup() {
   );
 }
 
-void loop() {
-  delay(200);
-  Serial.println("loop");
-  Serial.print("IP = "); Serial.println(WiFi.localIP());
-  Serial.print("HOST = "); Serial.print(MDNS_HOST); Serial.println(".local");
-  OscWiFi.update();
+void setup() {
+  Serial.begin(115200);
+  
+  // SPIFFS 初期化
+  spiffsUtil.begin();
 
+  // LED 初期化
+  ledUtil.setup(LED1);
+
+  //ステータス初期化
+  setupStatus();
+
+  // WiFi 接続設定
+  wifiUtil.setupWiFi(WIFI_SSID);
+  Serial.print("WiFi connected, IP = "); Serial.println(WiFi.localIP());
+  // mDNS 設定
+  wifiUtil.setupMDNS(MDNS_HOST, HTTP_PORT, OSC_BIND_PORT);
+  
+  // WebServerSetup
+  webServerSetup();
+
+  // OSC受信設定
+  oscWiFiSetup();
+}
+
+// OSC コマンド受付
+void loopOscCmd() {
+  OscWiFi.update();
   if ( strcmp(status.mode.c_str(),DEVICE_STATUS_MODE_RESET) == 0) {
     status.mode = DEVICE_STATUS_MODE_DEFAULT;
-    wifiManager.resetSettings();
+    wifiUtil.resetSettings();
     ESP.restart();
   }
   else if ( strcmp(status.mode.c_str(),DEVICE_STATUS_MODE_DIR) == 0) {
@@ -283,18 +266,18 @@ void loop() {
   } else if ( strcmp(status.mode.c_str(),DEVICE_STATUS_MODE_COLOR) == 0) {
     status.mode = DEVICE_STATUS_MODE_DEFAULT;
     // LED 色設定
-    int rgb[3];
-    rgbStr2rgbInt(status.color[0].c_str(),rgb);
-    pixels.setPixelColor(0, pixels.Color(rgb[0], rgb[1], rgb[2]));
-
-    rgbStr2rgbInt(status.color[1].c_str(),rgb);
-    pixels.setPixelColor(1, pixels.Color(rgb[0], rgb[1], rgb[2]));
-
-    rgbStr2rgbInt(status.color[2].c_str(),rgb);
-    pixels.setPixelColor(2, pixels.Color(rgb[0], rgb[1], rgb[2]));
-
-    rgbStr2rgbInt(status.color[3].c_str(),rgb);
-    pixels.setPixelColor(3, pixels.Color(rgb[0], rgb[1], rgb[2]));
-    pixels.show();
+    ledUtil.setPixelColor(0, status.color[0].c_str());
+    ledUtil.setPixelColor(1, status.color[1].c_str());
+    ledUtil.setPixelColor(2, status.color[2].c_str());
+    ledUtil.setPixelColor(3, status.color[3].c_str());
+    ledUtil.show();
   }
+}
+
+void loop() {
+  delay(200);
+  // Serial.println("loop");
+  // Serial.print("IP = "); Serial.println(WiFi.localIP());
+  // Serial.print("HOST = "); Serial.print(MDNS_HOST); Serial.println(".local");
+  loopOscCmd();
 }
