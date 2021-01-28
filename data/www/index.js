@@ -64,7 +64,7 @@ var app = new Vue({
             });
         },
         clickPlayLocalMp3() {
-          const data = {'path': '/d3_IcaDhcDM.mp3'};
+          const data = {'path': '/mp3/d3_IcaDhcDM.mp3'};
           API.request("/api/play/mp3", data)
             .then((json)=>{
               console.log(json);

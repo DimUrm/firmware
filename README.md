@@ -170,6 +170,9 @@ setInterval(send, 5000);
 youtube-dl 利用 例
 
 ```
-cd data
-youtube-dl https://www.youtube.com/watch?v=d3_IcaDhcDM -x -f "d3_IcaDhcDM.mp3" --audio-format mp3
+cd data/mp3/
+youtube-dl "https://www.youtube.com/watch?v=d3_IcaDhcDM" -F
+youtube-dl "https://www.youtube.com/watch?v=d3_IcaDhcDM" -x -f "worstaudio" --audio-format mp3 --audio-quality 9 -o "d3_IcaDhcDM.mp3"
+
+# youtube-dl "https://www.youtube.com/watch?v=d3_IcaDhcDM" -x -f "bestaudio" --audio-format mp3 --audio-quality 0 -o "0-d3_IcaDhcDM.mp3"
 ```

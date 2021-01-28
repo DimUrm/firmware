@@ -89,8 +89,30 @@ void webServerSetup() {
   webServer.on("/300x100.png", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(SPIFFS, "/www/300x100.png", "image/png");
   });
-
+  webServer.on("/led-onoff.png", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/www/led-onoff.png", "image/png");
+  });
+  webServer.on("/mp3-file.png", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/www/mp3-file.png", "image/png");
+  });
+  webServer.on("/mp3-url.png", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/www/mp3-url.png", "image/png");
+  });
   // API 実装 ---- 
+  {
+    // IPAddress 取得 API
+    // curl -X POST -H "Content-Type: application/json" -d '{}' http://192.168.86.48/api/ip    
+    AsyncCallbackJsonWebHandler* handler = new AsyncCallbackJsonWebHandler("/api/ip", [](AsyncWebServerRequest *request, JsonVariant &json) {
+      setStatusLED(true);
+      IPAddress localIP = WiFi.localIP();
+      String output = "{\"status\":\"OK\",\"ip\":\"" + localIP.toString() + "\"}";
+      request->send(200, "application/json", output);
+
+      setStatusLED(false);  
+    });
+    webServer.addHandler(handler);
+  }
+
   {
     // LED 制御 API
     // curl -X POST -H "Content-Type: application/json" -d '{"leds": ["255,255,255","255,255,255","255,255,255","255,255,255"]}' http://192.168.86.48/api/led
@@ -117,20 +139,6 @@ void webServerSetup() {
   }
 
   {
-    // IPAddress 取得 API
-    // curl -X POST -H "Content-Type: application/json" -d '{}' http://192.168.86.48/api/ip    
-    AsyncCallbackJsonWebHandler* handler = new AsyncCallbackJsonWebHandler("/api/ip", [](AsyncWebServerRequest *request, JsonVariant &json) {
-      setStatusLED(true);
-      IPAddress localIP = WiFi.localIP();
-      String output = "{\"status\":\"OK\",\"ip\":\"" + localIP.toString() + "\"}";
-      request->send(200, "application/json", output);
-
-      setStatusLED(false);  
-    });
-    webServer.addHandler(handler);
-  }
-
-  {
     // ローカル mp3 再生 API
     // curl -X POST -H "Content-Type: application/json" -d '{"path": "/d3_IcaDhcDM.mp3"}' http://192.168.86.48/api/play/mp3    
     AsyncCallbackJsonWebHandler* handler = new AsyncCallbackJsonWebHandler("/api/play/mp3", [](AsyncWebServerRequest *request, JsonVariant &json) {
@@ -139,8 +147,8 @@ void webServerSetup() {
       JsonObject& root = json.as<JsonObject>();
       const char* path = root["path"];
 
-      status.mode = DEVICE_STATUS_MODE_PLAY_MP3;
       status.path = path;
+      status.mode = DEVICE_STATUS_MODE_PLAY_MP3;
 
       String output = "{\"status\":\"OK\",\"path\":\"" + String(status.path) + "\"}";
       request->send(200, "application/json", output);
@@ -159,8 +167,8 @@ void webServerSetup() {
       JsonObject& root = json.as<JsonObject>();
       const char* url = root["url"];
 
-      status.mode = DEVICE_STATUS_MODE_PLAY_URL_MP3;
       status.path = url;
+      status.mode = DEVICE_STATUS_MODE_PLAY_URL_MP3;
 
       String output = "{\"status\":\"OK\",\"url\":\"" + String(status.path) + "\"}";
       request->send(200, "application/json", output);
@@ -213,6 +221,7 @@ void playMp3(const char* spiffsFile){
     Serial.print("file is null");
     while (1);
   }
+  Serial.printf("file path: %s\n", spiffsFile);
   Serial.print("file size:"); Serial.println( file->getSize() );
   Serial.printf("volume %.1f\n", status.volume);
   if (file->getSize() == 0) return;
@@ -237,7 +246,7 @@ void playUrlMP3(const char* url){
 //ステータス初期化
 void setupStatus(){
   status.mode = DEVICE_STATUS_MODE_DEFAULT;
-  status.volume = 0.3f;
+  status.volume = 0.8f;
 }
 
 // OSC 初期化
@@ -374,8 +383,5 @@ void loopOscCmd() {
 
 void loop() {
   delay(200);
-  // Serial.println("loop");
-  // Serial.print("IP = "); Serial.println(WiFi.localIP());
-  // Serial.print("HOST = "); Serial.print(MDNS_HOST); Serial.println(".local");
   loopOscCmd();
 }
