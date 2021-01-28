@@ -164,3 +164,12 @@ function send() {
 
 setInterval(send, 5000);
 ```
+
+
+# MP3 ダウンロード 
+youtube-dl 利用 例
+
+```
+cd data
+youtube-dl https://www.youtube.com/watch?v=d3_IcaDhcDM -x -f "d3_IcaDhcDM.mp3" --audio-format mp3
+```

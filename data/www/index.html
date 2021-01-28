@@ -9,19 +9,36 @@
     <div id="app">
         <div class="columns">
             <div class="column">
-                <p>{{ message }}</p>
+                <h1>{{ title }}</h1>
             </div>
-            <div class="column"><img src='300x100.png'></div>
-            <div class="column"><img src='300x100.png'></div>
-            <div class="column"><img src='300x100.png'></div>
+        </div>
+        <div class="columns">         
+            <div class="column"><img src='300x100.png' @click='clickLedToggle'></div>
+        </div>
+        <div class="columns">
+            <div class="column"><img src='300x100.png' @click='clickPlayLocalMp3'></div>
+        </div>
+        <div class="columns">
+            <div class="column"><img src='300x100.png' @click='clickPlayUrlMp3'></div>
+        </div>
+        <div class="columns">
+            <div class="column">
+                <p>{{ url }}</p>
+                <qriously :value="url" :size="200" />
+            </div>
+        </div>        
+        <!--
+        <div class="columns">
             <div class="column">
                 <a class="button is-primary" @click='clickButton'>Button</a>
             </div>            
-        </div>        
+        </div>
+        -->
     </div>
     <script src="https://cdn.jsdelivr.net/npm/vue@2.6.12"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.css">    
+    <script src="https://cdn.jsdelivr.net/npm/vue-qriously@1.1.1/dist/vue-qriously.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.css">  
     <script src="index.js"></script>
-    <link rel="stylesheet" href="index.css">    
+    <link rel="stylesheet" href="index.css">
 </body>
 </html>

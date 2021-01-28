@@ -17,6 +17,8 @@
 #include "SpiffsUtil.h"
 
 #include "ESPAsyncWebServer.h"
+#include "AsyncJson.h"
+#include <ArduinoJson.h>
 
 WifiUtil wifiUtil;
 // AP モード SSID
@@ -60,6 +62,14 @@ uint8_t downloadFileData[DOWNLOAD_FILE_SIZE];
 const int HTTP_PORT = 80;
 AsyncWebServer webServer(HTTP_PORT);
 
+// LED D2
+#define D2 13
+
+// D2 
+void setStatusLED(bool isON) {
+  digitalWrite(D2, (isON)? HIGH : LOW);
+}
+
 String processor(const String& var){
   Serial.print("processor "); 
   Serial.println(var);
@@ -79,9 +89,86 @@ void webServerSetup() {
   webServer.on("/300x100.png", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(SPIFFS, "/www/300x100.png", "image/png");
   });
-  webServer.on("/api", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(SPIFFS, "/www/index.html", "text/html", false, processor);
-  });
+
+  // API 実装 ---- 
+  {
+    // LED 制御 API
+    // curl -X POST -H "Content-Type: application/json" -d '{"leds": ["255,255,255","255,255,255","255,255,255","255,255,255"]}' http://192.168.86.48/api/led
+    AsyncCallbackJsonWebHandler* handler = new AsyncCallbackJsonWebHandler("/api/led", [](AsyncWebServerRequest *request, JsonVariant &json) {
+      setStatusLED(true);
+      JsonObject& root = json.as<JsonObject>();
+      const char* led0 = root["leds"][0];
+      const char* led1 = root["leds"][1];
+      const char* led2 = root["leds"][2];
+      const char* led3 = root["leds"][3];
+
+      status.color[0] = led0;
+      status.color[1] = led1;
+      status.color[2] = led2;
+      status.color[3] = led3;
+      status.mode = DEVICE_STATUS_MODE_COLOR;
+
+      String output = "{\"status\":\"OK\"}";
+      request->send(200, "application/json", output);
+
+      setStatusLED(false);  
+    });
+    webServer.addHandler(handler);
+  }
+
+  {
+    // IPAddress 取得 API
+    // curl -X POST -H "Content-Type: application/json" -d '{}' http://192.168.86.48/api/ip    
+    AsyncCallbackJsonWebHandler* handler = new AsyncCallbackJsonWebHandler("/api/ip", [](AsyncWebServerRequest *request, JsonVariant &json) {
+      setStatusLED(true);
+      IPAddress localIP = WiFi.localIP();
+      String output = "{\"status\":\"OK\",\"ip\":\"" + localIP.toString() + "\"}";
+      request->send(200, "application/json", output);
+
+      setStatusLED(false);  
+    });
+    webServer.addHandler(handler);
+  }
+
+  {
+    // ローカル mp3 再生 API
+    // curl -X POST -H "Content-Type: application/json" -d '{"path": "/d3_IcaDhcDM.mp3"}' http://192.168.86.48/api/play/mp3    
+    AsyncCallbackJsonWebHandler* handler = new AsyncCallbackJsonWebHandler("/api/play/mp3", [](AsyncWebServerRequest *request, JsonVariant &json) {
+      setStatusLED(true);
+
+      JsonObject& root = json.as<JsonObject>();
+      const char* path = root["path"];
+
+      status.mode = DEVICE_STATUS_MODE_PLAY_MP3;
+      status.path = path;
+
+      String output = "{\"status\":\"OK\",\"path\":\"" + String(status.path) + "\"}";
+      request->send(200, "application/json", output);
+
+      setStatusLED(false);  
+    });
+    webServer.addHandler(handler);
+  }
+
+  {
+    // URL mp3 再生 API
+    // curl -X POST -H "Content-Type: application/json" -d '{"url": "https://file-examples-com.github.io/uploads/2017/11/file_example_MP3_700KB.mp3"}' http://192.168.86.48/api/play/url/mp3  
+    AsyncCallbackJsonWebHandler* handler = new AsyncCallbackJsonWebHandler("/api/play/url/mp3", [](AsyncWebServerRequest *request, JsonVariant &json) {
+      setStatusLED(true);
+
+      JsonObject& root = json.as<JsonObject>();
+      const char* url = root["url"];
+
+      status.mode = DEVICE_STATUS_MODE_PLAY_URL_MP3;
+      status.path = url;
+
+      String output = "{\"status\":\"OK\",\"url\":\"" + String(status.path) + "\"}";
+      request->send(200, "application/json", output);
+
+      setStatusLED(false);  
+    });
+    webServer.addHandler(handler);
+  }  
   webServer.begin();
 }
 
@@ -220,6 +307,9 @@ void oscWiFiSetup() {
 void setup() {
   Serial.begin(115200);
   
+  pinMode(D2, OUTPUT);
+  digitalWrite(D2, LOW);
+
   // SPIFFS 初期化
   spiffsUtil.begin();
 
@@ -251,19 +341,26 @@ void loopOscCmd() {
     ESP.restart();
   }
   else if ( strcmp(status.mode.c_str(),DEVICE_STATUS_MODE_DIR) == 0) {
+    setStatusLED(true);
     status.mode = DEVICE_STATUS_MODE_DEFAULT;
     spiffsUtil.listDir("/", 0);
+    setStatusLED(false);
   }
   else if ( strcmp(status.mode.c_str(),DEVICE_STATUS_MODE_PLAY_MP3) == 0) {
+    setStatusLED(true);
     status.mode = DEVICE_STATUS_MODE_DEFAULT;
     //SPIFFS mp3 ファイル 再生
     playMp3(status.path.c_str());
+    setStatusLED(false);
   }
   else if ( strcmp(status.mode.c_str(),DEVICE_STATUS_MODE_PLAY_URL_MP3) == 0) {
+    setStatusLED(true);
     status.mode = DEVICE_STATUS_MODE_DEFAULT;
     //URL ファイル 再生 ダウンロードし再生する
     playUrlMP3(status.path.c_str());
+    setStatusLED(false);
   } else if ( strcmp(status.mode.c_str(),DEVICE_STATUS_MODE_COLOR) == 0) {
+    setStatusLED(true);
     status.mode = DEVICE_STATUS_MODE_DEFAULT;
     // LED 色設定
     ledUtil.setPixelColor(0, status.color[0].c_str());
@@ -271,6 +368,7 @@ void loopOscCmd() {
     ledUtil.setPixelColor(2, status.color[2].c_str());
     ledUtil.setPixelColor(3, status.color[3].c_str());
     ledUtil.show();
+    setStatusLED(false);
   }
 }
 
