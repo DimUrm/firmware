@@ -68,6 +68,14 @@ SPIFFS 領域に `data` フォルダ内容を書き込む
 ![図wifi1](./doc/wifi1.jpg)  
 ![図wifi2](./doc/wifi2.jpg)  
 
+# ブラウザ でのアクセス
+SSID 設定後に 再起動されると 下のURLにアクセスできるようになる。  
+各ボタンを押すと機能を試す事ができる。  
+
+`http://connecteddoll.local`
+
+![図www](./doc/www.png)
+
 # OSC コマンド
 OSC対応アプリから各制御する場合の参考  
 
