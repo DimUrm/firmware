@@ -34,7 +34,7 @@ ESP32 for Arduino互換ボード なので 独自ファームの開発も可能�
 - [WiFiManager](https://github.com/zhouhan0126/WIFIMANAGER-ESP32)
 
 - [ArduinoOSC](https://github.com/hideakitai/ArduinoOSC)
-
+- [ArduinoJson 5.13.4](https://github.com/bblanchon/ArduinoJson/releases/tag/v5.13.4)
 
 # ビルド手順
 
@@ -48,6 +48,7 @@ git clone git@github.com:hideakitai/ArduinoOSC.git
 git clone git@github.com:tzapu/WiFiManager.git
 git clone git@github.com:me-no-dev/AsyncTCP.git
 git clone git@github.com:me-no-dev/ESPAsyncWebServer.git
+git clone git@github.com:bblanchon/ArduinoJson.git -b v5.13.5
 
 cd ..
 code .
