@@ -175,13 +175,30 @@ setInterval(send, 5000);
 ```
 
 
-# MP3 ダウンロード 
-youtube-dl 利用 例
+# MP3 ダウンロード & 再生できる形式への変換
+youtube-dl 利用 128KBit 44.1KHz  
 
 ```
 cd data/mp3/
 youtube-dl "https://www.youtube.com/watch?v=d3_IcaDhcDM" -F
-youtube-dl "https://www.youtube.com/watch?v=d3_IcaDhcDM" -x -f "worstaudio" --audio-format mp3 --audio-quality 9 -o "d3_IcaDhcDM.mp3"
 
-# youtube-dl "https://www.youtube.com/watch?v=d3_IcaDhcDM" -x -f "bestaudio" --audio-format mp3 --audio-quality 0 -o "0-d3_IcaDhcDM.mp3"
+[youtube] d3_IcaDhcDM: Downloading webpage
+[youtube] d3_IcaDhcDM: Downloading MPD manifest
+[info] Available formats for d3_IcaDhcDM:
+format code  extension  resolution note
+139          m4a        audio only DASH audio   50k , m4a_dash container, mp4a.40.5 (22050Hz), 1.68MiB
+140          m4a        audio only tiny  129k , mp4a.40.2@129k (44100Hz), 4.45MiB
+
+# 最低音質 worstaudio
+youtube-dl "https://www.youtube.com/watch?v=d3_IcaDhcDM" -f 140 -o "d3_IcaDhcDM.m4a"
+
+# ファイル情報を調べる
+ffmpeg -i "d3_IcaDhcDM.m4a"
+
+# 128KBit 44.1KHz へ変換
+ffmpeg -i "d3_IcaDhcDM.m4a" -ar 44100 -ab 128k -acodec libmp3lame -f mp3 "d3_IcaDhcDM.mp3"
+
+# ファイル情報を調べる
+ffmpeg -i "d3_IcaDhcDM.mp3"
+
 ```
