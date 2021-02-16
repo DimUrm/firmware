@@ -1,12 +1,10 @@
 #include <Arduino.h>
 #include <ArduinoOSC.h>
 
-#include "SPI.h"
-#include "I2S.h"
-#include "FS.h"
-#include "SPIFFS.h"
-#include "LedUtil.h"
-#include "WifiUtil.h"
+#include <FS.h>
+#include <SPIFFS.h>
+
+#include <SPI.h>
 
 #include "AudioFileSourceICYStream.h"
 #include "AudioFileSourceBuffer.h"
@@ -18,9 +16,14 @@
 #include "FileDownloader.h"
 #include "SpiffsUtil.h"
 
-#include "ESPAsyncWebServer.h"
-#include "AsyncJson.h"
+#include "I2S.h"
+#include "LedUtil.h"
+#include "WifiUtil.h"
+
+#include <AsyncTCP.h>
+#include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
+#include <AsyncJson.h>
 
 WifiUtil wifiUtil;
 // AP モード SSID
@@ -112,9 +115,9 @@ void webServerSetup() {
       setStatusLED(true);
 
       status.mode = DEVICE_STATUS_MODE_DIR;
+      // TODO dir 結果を jsonで返す
       String output = "{\"status\":\"OK\"}";
       request->send(200, "application/json", output);
-
       setStatusLED(false);  
     });
     webServer.addHandler(handler);
@@ -227,38 +230,8 @@ void webServerSetup() {
     webServer.addHandler(handler);
   }
 
-
   {
-    // webServer.serveStatic("/", SPIFFS, "/").setDefaultFile("index.html");
-    // /へのアクセスを index.html として扱う
-    webServer.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-      Serial.printf("GET %s", request->url().c_str());
-      request->send(SPIFFS, "/www/index.html", "text/html");
-    });
-
-    // 未定義のURL へのアクセス
-    webServer.onNotFound([](AsyncWebServerRequest *request){
-      // request->send(404);
-      if(request->method() != HTTP_GET) {
-        request->send(404);
-        return;
-      }
-
-      Serial.printf("GET %s\n", request->url().c_str());
-      String spiffsPath = "/www" + request->url();
-      Serial.printf("spiffsPath %s\n", spiffsPath.c_str());
-
-      if (SPIFFS.exists(spiffsPath.c_str()) == false) {
-        Serial.println(F("404"));
-        request->send(404);
-        return;
-      }
-
-      String contentType = getContentType(spiffsPath);
-      Serial.printf("contentType %s\n", contentType.c_str());
-
-      request->send(SPIFFS, spiffsPath, contentType);
-    });
+    webServer.serveStatic("/", SPIFFS, "/www").setDefaultFile("index.html");
   }
 
   webServer.begin();

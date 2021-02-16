@@ -14,7 +14,11 @@ SpiffsUtil::~SpiffsUtil(){
   fw.close();
 */
 void SpiffsUtil::begin(){
-    SPIFFS.begin();
+    // SPIFFS.begin();
+    if(!SPIFFS.begin()){
+        Serial.println("An Error has occurred while mounting SPIFFS");
+        while (1);
+    }    
 }
 
 File SpiffsUtil::open(const char* fileName, const char* mode) {
