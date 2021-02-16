@@ -58,14 +58,12 @@ API_TUBE_TO_MP3.stream = (videoId) => {
 }
 
 Vue.use(window['vue-qriously']);
-const VueColor = window.VueColor;
-const Chrome = VueColor.Chrome;
 
 var app = new Vue({
     el: "#app",
     components: {
       'vueSlider': window[ 'vue-slider-component' ],
-      'chrome-picker': Chrome,
+      'vue-channel-color-picker': window['vue-channel-color-picker']
     },
     data: {
       title: "ConnectedDoll",
@@ -80,18 +78,26 @@ var app = new Vue({
         max: 100,
         value: 10
       },
+      color: {
+        type: "rgb",
+        channels: [0, 0, 0]
+      },
       leds: [
         {
-          "rgba": {r: 255,g: 255,b: 255,a: 1}
+          type: "rgb",
+          channels: [0, 0, 0]
         },
         {
-          "rgba": {r: 255,g: 255,b: 255,a: 1}
+          type: "rgb",
+          channels: [0, 0, 0]
         },
         {
-          "rgba": {r: 255,g: 255,b: 255,a: 1}
+          type: "rgb",
+          channels: [0, 0, 0]
         },
         {
-          "rgba": {r: 255,g: 255,b: 255,a: 1}
+          type: "rgb",
+          channels: [0, 0, 0]
         }
       ]
     },
@@ -120,25 +126,30 @@ var app = new Vue({
       }
     },
     methods: {
-      updateLedcolor() {
-        console.log('this.leds', this.leds);
-
-        this.leds[1] = this.leds[0];
-        this.leds[2] = this.leds[0];
-        this.leds[3] = this.leds[0];
-
-        this.isLedOn = false;
-        this.clickLedToggle();
+      updateLedColor(color) {
+        this.color = color;
+        this.leds[0] = JSON.parse(JSON.stringify(color));
+        this.leds[1] = JSON.parse(JSON.stringify(color));
+        this.leds[2] = JSON.parse(JSON.stringify(color));
+        this.leds[3] = JSON.parse(JSON.stringify(color));
+        console.log('updateLedColor', this.leds, color);
+      },
+      colorPickerOen(status){
+        console.log('colorPickerOen', status);
+        if (status == false) {
+          this.isLedOn = false;
+          this.clickLedToggle();
+        }
       },
       clickLedToggle() {        
         // curl -X POST -H "Content-Type: application/json" -d '{"leds": ["255,255,255","255,255,255","255,255,255","255,255,255"]}' http://192.168.86.48/api/led
         this.isLedOn = !this.isLedOn;
         const data = {"leds":["0,0,0","0,0,0","0,0,0","0,0,0"]};
         if (this.isLedOn) {
-          data['leds'][0] = this.leds[0]['rgba']['r'] + "," + this.leds[0]['rgba']['g'] + "," + this.leds[0]['rgba']['b'];
-          data['leds'][1] = this.leds[1]['rgba']['r'] + "," + this.leds[1]['rgba']['g'] + "," + this.leds[1]['rgba']['b'];
-          data['leds'][2] = this.leds[2]['rgba']['r'] + "," + this.leds[2]['rgba']['g'] + "," + this.leds[2]['rgba']['b'];
-          data['leds'][3] = this.leds[3]['rgba']['r'] + "," + this.leds[3]['rgba']['g'] + "," + this.leds[3]['rgba']['b'];
+          data['leds'][0] = this.leds[0]['channels'][0] + "," + this.leds[0]['channels'][1] + "," + this.leds[0]['channels'][2];
+          data['leds'][1] = this.leds[1]['channels'][0] + "," + this.leds[1]['channels'][1] + "," + this.leds[1]['channels'][2];
+          data['leds'][2] = this.leds[2]['channels'][0] + "," + this.leds[2]['channels'][1] + "," + this.leds[2]['channels'][2];
+          data['leds'][3] = this.leds[3]['channels'][0] + "," + this.leds[3]['channels'][1] + "," + this.leds[3]['channels'][2];
         }
         API.request("/api/led", data)
           .then((json)=>{

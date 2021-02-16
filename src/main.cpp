@@ -78,6 +78,7 @@ void setStatusLED(bool isON) {
   digitalWrite(D2, (isON)? HIGH : LOW);
 }
 
+void setLedColors();
 void MDCallback(void *cbData, const char *type, bool isUnicode, const char *string);
 void StatusCallback(void *cbData, int code, const char *string);
 
@@ -160,7 +161,8 @@ void webServerSetup() {
       status.color[1] = led1;
       status.color[2] = led2;
       status.color[3] = led3;
-      status.mode = DEVICE_STATUS_MODE_COLOR;
+      // status.mode = DEVICE_STATUS_MODE_COLOR;
+      setLedColors();
 
       String output = "{\"status\":\"OK\"}";
       request->send(200, "application/json", output);
@@ -289,10 +291,6 @@ void playMp3(const char* spiffsFile){
   Serial.print("file size:"); Serial.println( file->getSize() );
   Serial.printf("volume %.1f\n", status.volume);
   if (file->getSize() == 0) return;
-
-  // out = new AudioOutputI2S();
-  // out->SetPinout(PIN_I2S_BCLK, PIN_I2S_LRC, PIN_I2S_DOUT);
-  // out->SetChannels(1);
 
   // 音量設定
   out->SetGain(status.volume);
@@ -439,6 +437,16 @@ void oscWiFiSetup() {
   );
 }
 
+// LED 色設定
+void setLedColors(){
+  ledUtil.setPixelColor(0, status.color[0].c_str());
+  ledUtil.setPixelColor(1, status.color[1].c_str());
+  ledUtil.setPixelColor(2, status.color[2].c_str());
+  ledUtil.setPixelColor(3, status.color[3].c_str());
+  ledUtil.show();
+  status.mode = DEVICE_STATUS_MODE_DEFAULT;
+}
+
 void setup() {
   Serial.begin(115200);
   
@@ -508,17 +516,13 @@ void loopOscCmd() {
     setStatusLED(true);
     status.mode = DEVICE_STATUS_MODE_DEFAULT;
     // LED 色設定
-    ledUtil.setPixelColor(0, status.color[0].c_str());
-    ledUtil.setPixelColor(1, status.color[1].c_str());
-    ledUtil.setPixelColor(2, status.color[2].c_str());
-    ledUtil.setPixelColor(3, status.color[3].c_str());
-    ledUtil.show();
+    setLedColors();
     setStatusLED(false);
   }
 }
 
 void loop() {
   // Serial.println("loop");
-  delay(200);
+  // delay(200);
   loopOscCmd();
 }
