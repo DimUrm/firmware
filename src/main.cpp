@@ -175,15 +175,15 @@ void webServerSetup() {
   
   {
     // mp3 再生 停止 API
-    // curl -X POST -H "Content-Type: application/json" -d '{}' http://connecteddoll.local/api/mp3/stop    
-    AsyncCallbackJsonWebHandler* handler = new AsyncCallbackJsonWebHandler("/api/mp3/stop", [](AsyncWebServerRequest *request, JsonVariant &json) {
+    // curl -X POST -H "Content-Type: application/json" -d '{}' http://connecteddoll.local/api/stop/mp3    
+    AsyncCallbackJsonWebHandler* handler = new AsyncCallbackJsonWebHandler("/api/stop/mp3", [](AsyncWebServerRequest *request, JsonVariant &json) {
       setStatusLED(true);
-      
-      stopMp3();
       
       String output = "{\"status\":\"OK\"}";
       request->send(200, "application/json", output);
-
+      
+      stopMp3();
+      
       setStatusLED(false);  
     });
     webServer.addHandler(handler);
@@ -443,6 +443,15 @@ void oscWiFiSetup() {
     }
   );
 
+  // MP3ファイル再生 停止
+  OscWiFi.subscribe(OSC_BIND_PORT, "/status/stop/mp3",
+    [](const OscMessage& m)
+    {
+      stopMp3();
+      Serial.printf("/status/stop/mp3\n");
+    }
+  );
+
   // LED カラー設定
   OscWiFi.subscribe(OSC_BIND_PORT, "/status/color",
     [](const OscMessage& m)
@@ -458,6 +467,8 @@ void oscWiFiSetup() {
           status.color[1].c_str(),
           status.color[2].c_str(),
           status.color[3].c_str());
+      
+      setLedColors();
     }
   );
 }

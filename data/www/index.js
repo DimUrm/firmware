@@ -181,7 +181,7 @@ var app = new Vue({
       },
       clickPlayStopMp3() {
         const data = {};
-        API.request("/api/mp3/stop", data)
+        API.request("/api/stop/mp3", data)
           .then((json)=>{
             console.log(json);
           })
