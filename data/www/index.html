@@ -6,17 +6,22 @@
 <title>ConnectedDoll</title>
 </head>
 <body>
-    <div id="app">
+    <div id="app" class="container">
         <div class="columns is-mobile">
-            <div class="column">
+            <div class="column is-half is-offset-one-quarter">
                 <h1>{{ title }}</h1>
             </div>
         </div>
+        <div class="columns is-mobile">
+            <div class="column is-half is-offset-one-quarter">
+                <p><chrome-picker v-model="leds[0]" @input="updateLedcolor"/></p>
+            </div> 
+        </div>
         <div class="columns is-mobile">         
             <div class="column is-half is-offset-one-quarter">
-                <img src='led-onoff.png' @click='clickLedToggle'>
+                <p><img src='led-onoff.png' @click='clickLedToggle'></p>
             </div>
-        </div>
+        </div> 
         <div class="columns is-mobile">
             <div class="column is-half is-offset-one-quarter">
                 <p><input class="input is-normal" type='url' placeholder="YouTube URL" v-model='youtube.url'></p>
@@ -42,18 +47,13 @@
                 <p>{{ url }}</p>
                 <qriously :value="url" :size="200" />
             </div>
-        </div>        
-        <!--
-        <div class="columns">
-            <div class="column">
-                <a class="button is-primary" @click='clickButton'>Button</a>
-            </div>            
         </div>
-        -->
     </div>
     <script src="https://cdn.jsdelivr.net/npm/vue@2.6.12"></script>
     <script src="https://cdn.jsdelivr.net/npm/vue-qriously@1.1.1/dist/vue-qriously.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/vue-slider-component@latest/dist/vue-slider-component.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue-color@2.8.1/dist/vue-color.min.js"></script>
+
     <script src="index.js"></script>
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.css">
