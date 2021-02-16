@@ -179,6 +179,16 @@ var app = new Vue({
             console.error(e);
           });
       },
+      clickPlayStopMp3() {
+        const data = {};
+        API.request("/api/mp3/stop", data)
+          .then((json)=>{
+            console.log(json);
+          })
+          .catch((e) => {
+            console.error(e);
+          });
+      },
       clickPlayStreamMp3() {
         // 変換サーバにアクセスして stream URL を取得する
         const videoId = API_TUBE_TO_MP3.getVideoId(this.youtube.url);

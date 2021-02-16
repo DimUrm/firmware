@@ -79,6 +79,7 @@ void setStatusLED(bool isON) {
 }
 
 void setLedColors();
+void stopMp3();
 void MDCallback(void *cbData, const char *type, bool isUnicode, const char *string);
 void StatusCallback(void *cbData, int code, const char *string);
 
@@ -172,6 +173,22 @@ void webServerSetup() {
     webServer.addHandler(handler);
   }
   
+  {
+    // mp3 再生 停止 API
+    // curl -X POST -H "Content-Type: application/json" -d '{}' http://connecteddoll.local/api/mp3/stop    
+    AsyncCallbackJsonWebHandler* handler = new AsyncCallbackJsonWebHandler("/api/mp3/stop", [](AsyncWebServerRequest *request, JsonVariant &json) {
+      setStatusLED(true);
+      
+      stopMp3();
+      
+      String output = "{\"status\":\"OK\"}";
+      request->send(200, "application/json", output);
+
+      setStatusLED(false);  
+    });
+    webServer.addHandler(handler);
+  }
+
   {
     // ローカル mp3 再生 API
     // curl -X POST -H "Content-Type: application/json" -d '{"path": "/d3_IcaDhcDM.mp3"}' http://connecteddoll.local/api/play/mp3    
@@ -325,6 +342,14 @@ void playStreamMp3(const char* url){
   mp3->begin(streamFile, out);
   while(mp3->isRunning()){
     if (!mp3->loop()) mp3->stop();
+  }
+}
+
+// 再生停止
+void stopMp3(){
+  if (mp3 == nullptr) return;
+  if (mp3->isRunning()) {
+    mp3->stop();
   }
 }
 

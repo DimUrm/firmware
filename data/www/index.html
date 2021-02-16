@@ -14,19 +14,22 @@
         </div>
         <div class="columns is-mobile">
             <div class="column is-half is-offset-one-quarter">
-                <p><input class="input is-normal" type='url' placeholder="YouTube URL" v-model='youtube.url'></p>
-                <p><img src='mp3-stream.png' @click='clickPlayStreamMp3'></p>
+                <p>VOLUME {{volume.value}}</p>
+                <p><vue-slider :min="volume.min" :max="volume.max" v-model="volume.value"></vue-slider></p>                
             </div>
         </div>        
         <div class="columns is-mobile">
             <div class="column is-half is-offset-one-quarter">
-                <p>VOLUME {{volume.value}}</p>
-                <p><vue-slider :min="volume.min" :max="volume.max" v-model="volume.value"></vue-slider></p>                
+                <p><input class="input is-normal" type='url' placeholder="YouTube URL" v-model='youtube.url'></p>
+                <p><img src='mp3-stream.png' @click='clickPlayStreamMp3'></p>
             </div>
+        </div>    
+        <div class="columns is-mobile">
+            <div class="column is-half is-offset-one-quarter"><img src='mp3-stop.png' @click='clickPlayStopMp3'></div>
         </div>
         <!--
-        <div class="columns">
-            <div class="column"><img src='mp3-file.png' @click='clickPlayLocalMp3'></div>
+        <div class="columns is-mobile">
+            <div class="column is-half is-offset-one-quarter"><img src='mp3-file.png' @click='clickPlayLocalMp3'></div>
         </div>
         <div class="columns">
             <div class="column"><img src='mp3-url.png' @click='clickPlayUrlMp3'></div>
