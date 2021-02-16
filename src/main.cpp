@@ -8,6 +8,8 @@
 #include "LedUtil.h"
 #include "WifiUtil.h"
 
+#include "AudioFileSourceICYStream.h"
+#include "AudioFileSourceBuffer.h"
 #include "AudioFileSourceSPIFFS.h"
 #include "AudioFileSourceID3.h"
 #include "AudioGeneratorMP3.h"
@@ -43,10 +45,13 @@ DEVICE_STATUS status;
 #define DEVICE_STATUS_MODE_RESET   "reset"
 #define DEVICE_STATUS_MODE_DIR     "dir"
 #define DEVICE_STATUS_MODE_PLAY_MP3    "play_mp3" 
-#define DEVICE_STATUS_MODE_PLAY_URL_MP3    "play_url_mp3" 
+#define DEVICE_STATUS_MODE_PLAY_URL_MP3    "play_url_mp3"
+#define DEVICE_STATUS_MODE_PLAY_STREAM_MP3    "play_stream_mp3"
 #define DEVICE_STATUS_MODE_COLOR   "color"
 
 AudioGeneratorMP3 *mp3;
+AudioFileSourceICYStream *streamFile;
+AudioFileSourceBuffer *buff;
 AudioFileSourceSPIFFS *file;
 AudioOutputI2S *out;
 
@@ -70,38 +75,25 @@ void setStatusLED(bool isON) {
   digitalWrite(D2, (isON)? HIGH : LOW);
 }
 
-String processor(const String& var){
-  Serial.print("processor "); 
-  Serial.println(var);
-  return "";
+void MDCallback(void *cbData, const char *type, bool isUnicode, const char *string);
+void StatusCallback(void *cbData, int code, const char *string);
+
+// 拡張子で ContentType を切り替える
+String getContentType(String filename){
+  if(filename.endsWith(".html") || filename.endsWith(".htm")) return "text/html";
+  else if(filename.endsWith(".css")) return "text/css";
+  else if(filename.endsWith(".js"))  return "text/javascript";
+  else if(filename.endsWith(".png")) return "image/png";
+  else return "text/plain";
 }
 
 void webServerSetup() {
-  webServer.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(SPIFFS, "/www/index.html", "text/html");
-  });
-  webServer.on("/index.css", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(SPIFFS, "/www/index.css", "text/css");
-  });
-  webServer.on("/index.js", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(SPIFFS, "/www/index.js", "text/javascript");
-  });
-  webServer.on("/300x100.png", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(SPIFFS, "/www/300x100.png", "image/png");
-  });
-  webServer.on("/led-onoff.png", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(SPIFFS, "/www/led-onoff.png", "image/png");
-  });
-  webServer.on("/mp3-file.png", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(SPIFFS, "/www/mp3-file.png", "image/png");
-  });
-  webServer.on("/mp3-url.png", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(SPIFFS, "/www/mp3-url.png", "image/png");
-  });
+  Serial.println("webServerSetup");
+
   // API 実装 ---- 
   {
     // IPAddress 取得 API
-    // curl -X POST -H "Content-Type: application/json" -d '{}' http://192.168.86.48/api/ip    
+    // curl -X POST -H "Content-Type: application/json" -d '{}' http://connecteddoll.local/api/ip    
     AsyncCallbackJsonWebHandler* handler = new AsyncCallbackJsonWebHandler("/api/ip", [](AsyncWebServerRequest *request, JsonVariant &json) {
       setStatusLED(true);
       IPAddress localIP = WiFi.localIP();
@@ -115,7 +107,7 @@ void webServerSetup() {
 
   {
     // LED 制御 API
-    // curl -X POST -H "Content-Type: application/json" -d '{"leds": ["255,255,255","255,255,255","255,255,255","255,255,255"]}' http://192.168.86.48/api/led
+    // curl -X POST -H "Content-Type: application/json" -d '{"leds": ["255,255,255","255,255,255","255,255,255","255,255,255"]}' http://connecteddoll.local/api/led
     AsyncCallbackJsonWebHandler* handler = new AsyncCallbackJsonWebHandler("/api/led", [](AsyncWebServerRequest *request, JsonVariant &json) {
       setStatusLED(true);
       JsonObject& root = json.as<JsonObject>();
@@ -137,10 +129,10 @@ void webServerSetup() {
     });
     webServer.addHandler(handler);
   }
-
+  
   {
     // ローカル mp3 再生 API
-    // curl -X POST -H "Content-Type: application/json" -d '{"path": "/d3_IcaDhcDM.mp3"}' http://192.168.86.48/api/play/mp3    
+    // curl -X POST -H "Content-Type: application/json" -d '{"path": "/d3_IcaDhcDM.mp3"}' http://connecteddoll.local/api/play/mp3    
     AsyncCallbackJsonWebHandler* handler = new AsyncCallbackJsonWebHandler("/api/play/mp3", [](AsyncWebServerRequest *request, JsonVariant &json) {
       setStatusLED(true);
 
@@ -159,8 +151,8 @@ void webServerSetup() {
   }
 
   {
-    // URL mp3 再生 API
-    // curl -X POST -H "Content-Type: application/json" -d '{"url": "https://file-examples-com.github.io/uploads/2017/11/file_example_MP3_700KB.mp3"}' http://192.168.86.48/api/play/url/mp3  
+    // URL mp3 ダウンロード再生 API
+    // curl -X POST -H "Content-Type: application/json" -d '{"url": "https://file-examples-com.github.io/uploads/2017/11/file_example_MP3_700KB.mp3"}' http://connecteddoll.local/api/play/url/mp3  
     AsyncCallbackJsonWebHandler* handler = new AsyncCallbackJsonWebHandler("/api/play/url/mp3", [](AsyncWebServerRequest *request, JsonVariant &json) {
       setStatusLED(true);
 
@@ -176,8 +168,60 @@ void webServerSetup() {
       setStatusLED(false);  
     });
     webServer.addHandler(handler);
-  }  
+  }
+
+  {
+    // HTTPストリーミング mp3 再生 API
+    // curl -X POST -H "Content-Type: application/json" -d '{"url": "http://35.202.184.164/api/stream/d3_IcaDhcDM"}' http://connecteddoll.local/api/play/stream/mp3
+    AsyncCallbackJsonWebHandler* handler = new AsyncCallbackJsonWebHandler("/api/play/stream/mp3", [](AsyncWebServerRequest *request, JsonVariant &json) {
+      setStatusLED(true);
+
+      JsonObject& root = json.as<JsonObject>();
+      const char* url = root["url"];
+
+      status.path = url;
+      status.mode = DEVICE_STATUS_MODE_PLAY_STREAM_MP3;
+
+      String output = "{\"status\":\"OK\",\"url\":\"" + String(status.path) + "\"}";
+      request->send(200, "application/json", output);
+
+      setStatusLED(false);  
+    });
+    webServer.addHandler(handler);
+  }
+
+  {
+    // /へのアクセスを index.html として扱う
+    webServer.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+      Serial.printf("GET %s", request->url().c_str());
+      request->send(SPIFFS, "/www/index.html", "text/html");
+    });
+
+    // 未定義のURL へのアクセス
+    webServer.onNotFound([](AsyncWebServerRequest *request){
+      // request->send(404);
+      Serial.printf("GET %s\n", request->url().c_str());
+      String spiffsPath = "/www" + request->url();
+      
+      if (SPIFFS.exists(spiffsPath.c_str()) == false) {
+        Serial.println(F("404"));
+        request->send(404);
+        return;
+      }
+
+      String contentType = getContentType(spiffsPath);
+      request->send(SPIFFS, spiffsPath, contentType);
+    });
+  }
+
   webServer.begin();
+}
+
+void audioInit() {
+  Serial.println("audioInit");
+  out = new AudioOutputI2S();
+  out->SetPinout(PIN_I2S_BCLK, PIN_I2S_LRC, PIN_I2S_DOUT);
+  // out->SetChannels(1);
 }
 
 const char* downloadFile(const char* url) { 
@@ -226,21 +270,69 @@ void playMp3(const char* spiffsFile){
   Serial.printf("volume %.1f\n", status.volume);
   if (file->getSize() == 0) return;
 
-  out = new AudioOutputI2S();
-  out->SetPinout(PIN_I2S_BCLK, PIN_I2S_LRC, PIN_I2S_DOUT);
+  // out = new AudioOutputI2S();
+  // out->SetPinout(PIN_I2S_BCLK, PIN_I2S_LRC, PIN_I2S_DOUT);
   // out->SetChannels(1);
+
+  // 音量設定
   out->SetGain(status.volume);
+
   mp3 = new AudioGeneratorMP3();
   mp3->begin(file, out);
   while(mp3->isRunning()){
     if (!mp3->loop()) mp3->stop();
   }
 }
+
 // URL指定されたMP3ファイルをダウンロードして再生する
-void playUrlMP3(const char* url){
+void playUrlMp3(const char* url){
+  Serial.println("playUrlMp3");
   // SPIFFS にファイルをダウンロードする
   const char* fireName = downloadFile(url);
   playMp3(fireName);
+}
+
+// http stream での MP3 再生
+void playStreamMp3(const char* url){
+  Serial.println("playStreamMp3");
+  streamFile = new AudioFileSourceICYStream(url);
+  streamFile->RegisterMetadataCB(MDCallback, (void*)"ICY");
+  buff = new AudioFileSourceBuffer(streamFile, 2048);
+  buff->RegisterStatusCB(StatusCallback, (void*)"buffer");
+
+  // 音量設定
+  out->SetGain(status.volume);
+
+  mp3 = new AudioGeneratorMP3();
+  mp3->begin(streamFile, out);
+  while(mp3->isRunning()){
+    if (!mp3->loop()) mp3->stop();
+  }
+}
+
+void MDCallback(void *cbData, const char *type, bool isUnicode, const char *string)
+{
+  const char *ptr = reinterpret_cast<const char *>(cbData);
+  (void) isUnicode; // Punt this ball for now
+  // Note that the type and string may be in PROGMEM, so copy them to RAM for printf
+  char s1[32], s2[64];
+  strncpy_P(s1, type, sizeof(s1));
+  s1[sizeof(s1)-1]=0;
+  strncpy_P(s2, string, sizeof(s2));
+  s2[sizeof(s2)-1]=0;
+  Serial.printf("METADATA(%s) '%s' = '%s'\n", ptr, s1, s2);
+  Serial.flush();
+}
+
+void StatusCallback(void *cbData, int code, const char *string)
+{
+  const char *ptr = reinterpret_cast<const char *>(cbData);
+  // Note that the string may be in PROGMEM, so copy it to RAM for printf
+  char s1[64];
+  strncpy_P(s1, string, sizeof(s1));
+  s1[sizeof(s1)-1]=0;
+  Serial.printf("STATUS(%s) '%d' = '%s'\n", ptr, code, s1);
+  Serial.flush();
 }
 
 //ステータス初期化
@@ -251,6 +343,7 @@ void setupStatus(){
 
 // OSC 初期化
 void oscWiFiSetup() {
+  Serial.println("oscWiFiSetup");
   OscWiFi.subscribe(OSC_BIND_PORT, "/status/reset",
     [](const OscMessage& m)
     {
@@ -294,6 +387,16 @@ void oscWiFiSetup() {
     }
   );
 
+  // HTTPストリーミング MP3ファイル再生
+  OscWiFi.subscribe(OSC_BIND_PORT, "/status/play/stream/mp3",
+    [](const OscMessage& m)
+    {
+      status.mode = DEVICE_STATUS_MODE_PLAY_STREAM_MP3;
+      status.path = m.arg<String>(0);
+      Serial.printf("/status/play/stream/mp3 %s\n", status.path.c_str());
+    }
+  );
+
   // LED カラー設定
   OscWiFi.subscribe(OSC_BIND_PORT, "/status/color",
     [](const OscMessage& m)
@@ -328,11 +431,15 @@ void setup() {
   //ステータス初期化
   setupStatus();
 
+  // mDNS 設定
+  wifiUtil.setupMDNS(MDNS_HOST, HTTP_PORT, OSC_BIND_PORT);
+  
   // WiFi 接続設定
   wifiUtil.setupWiFi(WIFI_SSID);
   Serial.print("WiFi connected, IP = "); Serial.println(WiFi.localIP());
-  // mDNS 設定
-  wifiUtil.setupMDNS(MDNS_HOST, HTTP_PORT, OSC_BIND_PORT);
+
+  //　オーディオ 初期化
+  audioInit();
   
   // WebServerSetup
   webServerSetup();
@@ -366,8 +473,14 @@ void loopOscCmd() {
     setStatusLED(true);
     status.mode = DEVICE_STATUS_MODE_DEFAULT;
     //URL ファイル 再生 ダウンロードし再生する
-    playUrlMP3(status.path.c_str());
+    playUrlMp3(status.path.c_str());
     setStatusLED(false);
+  } else if ( strcmp(status.mode.c_str(),DEVICE_STATUS_MODE_PLAY_STREAM_MP3) == 0) {
+    setStatusLED(true);
+    status.mode = DEVICE_STATUS_MODE_DEFAULT;
+    //HTTPストリーミング で ファイル 再生する
+    playStreamMp3(status.path.c_str());
+    setStatusLED(false);    
   } else if ( strcmp(status.mode.c_str(),DEVICE_STATUS_MODE_COLOR) == 0) {
     setStatusLED(true);
     status.mode = DEVICE_STATUS_MODE_DEFAULT;
@@ -382,6 +495,7 @@ void loopOscCmd() {
 }
 
 void loop() {
+  // Serial.println("loop");
   delay(200);
   loopOscCmd();
 }
