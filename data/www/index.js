@@ -24,13 +24,59 @@ API.request = (url, data) => {
   });
 };
 
+class API_TUBE_TO_MP3 {};
+API_TUBE_TO_MP3.API_HOST = 'http://35.202.184.164';
+API_TUBE_TO_MP3.API_DOWNLOAD = '/api/dl';
+API_TUBE_TO_MP3.API_STREAM = '/api/stream';
+
+API_TUBE_TO_MP3.getVideoId = (url) => {
+  // v=pDgflOcHNnM
+  if (url == null) {
+      return null;
+  }        
+  const m = url.match('v=(.*)');       
+  console.log(m);
+  if (m == null) {
+      return null;
+  }
+  return m[1];
+}
+
+API_TUBE_TO_MP3.convert = (videoId) => {
+  return new Promise((resolve,reject) => {
+      fetch(API_TUBE_TO_MP3.API_HOST + API_TUBE_TO_MP3.API_DOWNLOAD + '/' +videoId)
+          .then(response => {
+              return response.json();
+          })
+          .then(data => {  resolve(data) })
+          .catch(e => reject(e));
+  });
+}
+
+API_TUBE_TO_MP3.stream = (videoId) => {
+  return API_TUBE_TO_MP3.API_HOST + API_TUBE_TO_MP3.API_STREAM + '/' +videoId
+}
+
 Vue.use(window['vue-qriously']);
+
 var app = new Vue({
     el: "#app",
+    components: {
+      'vueSlider': window[ 'vue-slider-component' ],
+    },
     data: {
       title: "ConnectedDoll",
       url: "http://connecteddoll.local",
-      isLedOn: false
+      isLedOn: false,
+      youtube: {
+        url: 'https://www.youtube.com/watch?v=1WTy2yqKI4w',
+        stream: 'http://35.202.184.164/api/stream/1WTy2yqKI4w'
+      },
+      volume: {
+        min: 0,
+        max: 100,
+        value: 100
+      }
     },
     created: function() {
       console.log('created');
@@ -43,6 +89,18 @@ var app = new Vue({
         .catch((e) => {
           console.error(e);
         });
+    },
+    watch:  {
+      'volume.value': function (newValue, oldValue) {
+        // console.log('volume.value', this.volume.value);
+        API.request('/api/volume', {'volume': this.volume.value/100})
+          .then((json)=>{
+            console.log(json);
+          })
+          .catch((e) => {
+            console.error(e);
+          });
+      }
     },
     methods: {
         clickLedToggle() {
@@ -82,6 +140,29 @@ var app = new Vue({
             .catch((e) => {
               console.error(e);
             });
-        }        
+        },
+        clickPlayStreamMp3() {
+          // 変換サーバにアクセスして stream URL を取得する
+          const videoId = API_TUBE_TO_MP3.getVideoId(this.youtube.url);
+          API_TUBE_TO_MP3.convert(videoId)
+            .then(result => {
+              // ストリーム URL 生成
+              this.youtube.stream = API_TUBE_TO_MP3.stream(videoId);
+
+              // 再生
+              const data = {'url': this.youtube.stream};
+              API.request("/api/play/stream/mp3", data)
+                .then((json)=>{
+                  console.log(json);
+                })
+                .catch((e) => {
+                  console.error(e);
+                });    
+            })
+            .catch(e => {
+              console.error('error', e);
+              alert('エラー ' + e);
+            });
+        }  
     }
   });
