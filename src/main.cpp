@@ -106,6 +106,43 @@ void webServerSetup() {
   }
 
   {
+    // SPIFFS DIR
+    // curl -X POST -H "Content-Type: application/json" -d '{}' http://connecteddoll.local/api/dir
+    AsyncCallbackJsonWebHandler* handler = new AsyncCallbackJsonWebHandler("/api/dir", [](AsyncWebServerRequest *request, JsonVariant &json) {
+      setStatusLED(true);
+
+      status.mode = DEVICE_STATUS_MODE_DIR;
+      String output = "{\"status\":\"OK\"}";
+      request->send(200, "application/json", output);
+
+      setStatusLED(false);  
+    });
+    webServer.addHandler(handler);
+  }
+
+  {
+    // VOLUME 設定
+    // curl -X POST -H "Content-Type: application/json" -d '{"volume":0.3}' http://connecteddoll.local/api/volume
+    AsyncCallbackJsonWebHandler* handler = new AsyncCallbackJsonWebHandler("/api/volume", [](AsyncWebServerRequest *request, JsonVariant &json) {
+      setStatusLED(true);
+
+      JsonObject& root = json.as<JsonObject>();
+      const float volume = root.get<float>("volume");
+      status.volume = volume;
+      Serial.printf("volume %.2f\n", volume);
+
+      String output = "{\"status\":\"OK\",\"volume\":" + String(volume) + "}";
+      request->send(200, "application/json", output);
+
+      // 音量設定
+      out->SetGain(status.volume);  
+
+      setStatusLED(false);  
+    });
+    webServer.addHandler(handler);
+  }
+
+  {
     // LED 制御 API
     // curl -X POST -H "Content-Type: application/json" -d '{"leds": ["255,255,255","255,255,255","255,255,255","255,255,255"]}' http://connecteddoll.local/api/led
     AsyncCallbackJsonWebHandler* handler = new AsyncCallbackJsonWebHandler("/api/led", [](AsyncWebServerRequest *request, JsonVariant &json) {
@@ -172,7 +209,7 @@ void webServerSetup() {
 
   {
     // HTTPストリーミング mp3 再生 API
-    // curl -X POST -H "Content-Type: application/json" -d '{"url": "http://35.202.184.164/api/stream/d3_IcaDhcDM"}' http://connecteddoll.local/api/play/stream/mp3
+    // curl -X POST -H "Content-Type: application/json" -d '{"url": "http://35.202.184.164/api/stream/1WTy2yqKI4w"}' http://connecteddoll.local/api/play/stream/mp3
     AsyncCallbackJsonWebHandler* handler = new AsyncCallbackJsonWebHandler("/api/play/stream/mp3", [](AsyncWebServerRequest *request, JsonVariant &json) {
       setStatusLED(true);
 
@@ -190,7 +227,9 @@ void webServerSetup() {
     webServer.addHandler(handler);
   }
 
+
   {
+    // webServer.serveStatic("/", SPIFFS, "/").setDefaultFile("index.html");
     // /へのアクセスを index.html として扱う
     webServer.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
       Serial.printf("GET %s", request->url().c_str());
@@ -200,9 +239,15 @@ void webServerSetup() {
     // 未定義のURL へのアクセス
     webServer.onNotFound([](AsyncWebServerRequest *request){
       // request->send(404);
+      if(request->method() != HTTP_GET) {
+        request->send(404);
+        return;
+      }
+
       Serial.printf("GET %s\n", request->url().c_str());
       String spiffsPath = "/www" + request->url();
-      
+      Serial.printf("spiffsPath %s\n", spiffsPath.c_str());
+
       if (SPIFFS.exists(spiffsPath.c_str()) == false) {
         Serial.println(F("404"));
         request->send(404);
@@ -210,6 +255,8 @@ void webServerSetup() {
       }
 
       String contentType = getContentType(spiffsPath);
+      Serial.printf("contentType %s\n", contentType.c_str());
+
       request->send(SPIFFS, spiffsPath, contentType);
     });
   }
@@ -338,7 +385,7 @@ void StatusCallback(void *cbData, int code, const char *string)
 //ステータス初期化
 void setupStatus(){
   status.mode = DEVICE_STATUS_MODE_DEFAULT;
-  status.volume = 0.8f;
+  status.volume = 0.1f;
 }
 
 // OSC 初期化
@@ -364,6 +411,9 @@ void oscWiFiSetup() {
       float v = m.arg<float>(0);
       status.volume = v;
       Serial.printf("/status/volume %.1f\n", status.volume);
+      
+      // 音量設定
+      out->SetGain(status.volume);      
     }
   );
 
