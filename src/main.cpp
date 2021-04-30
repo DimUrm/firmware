@@ -475,6 +475,13 @@ void oscWiFiSetup() {
 
 // LED 色設定
 void setLedColors(){
+  if ( (strcmp(status.color[0].c_str(), "0,0,0") == 0) 
+      && (strcmp(status.color[1].c_str(), "0,0,0") == 0)
+      && (strcmp(status.color[2].c_str(), "0,0,0") == 0)
+      && (strcmp(status.color[3].c_str(), "0,0,0") == 0)) {
+    // 消灯
+    digitalWrite(LED1, LOW);
+  }
   ledUtil.setPixelColor(0, status.color[0].c_str());
   ledUtil.setPixelColor(1, status.color[1].c_str());
   ledUtil.setPixelColor(2, status.color[2].c_str());
