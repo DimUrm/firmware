@@ -29,6 +29,8 @@
 #include <ArduinoJson.h>
 #include <AsyncJson.h>
 
+// 896420d668bbb
+
 WifiUtil wifiUtil;
 // AP モード SSID
 const char* WIFI_SSID = "ConnectedDoll";

@@ -59,7 +59,27 @@ var app = new Vue({
           "22:00","22:30",
           "23:00","23:30",
         ],
-        items: []
+        listColor: [
+          "255,0,0",
+          "0,255,0",
+          "0,0,255",
+        ],
+        listEffect: [
+          "effect_repetition.png",
+          "effect_repetition.png",
+          "effect_repetition.png",
+        ],
+        items: [
+          {
+            "index": 0,
+            "timeHHMM": "08:00",
+            "title": "おきてぇ",
+            "playbackTime": "0:39",
+            "color": "255,255,255",
+            "effect": "effect_repetition.png",
+            "url": "https://www.youtube.com/watch?v=DvkRoXRbqFw"
+          }
+        ]
       }
     },
     created: function() {
@@ -76,8 +96,8 @@ var app = new Vue({
       loadAramJson(){
         API.request("/api/aram", [])
           .then((json)=>{
-            console.log(json);
-            this.aram.items = Object.assign({},json);
+            console.log("aram", json);
+            this.aram.items = [].concat(json);
           })
           .catch((e) => {
             console.error(e);
@@ -132,8 +152,9 @@ var app = new Vue({
 
           // 保存処理
           this.saveAramItem(this.aram.selectItem)
-            .then((result) => {
-              console.log('saveAramItem result', result);
+            .then((json) => {
+              console.log('saveAramItem json', json);
+              this.aram.items = [].concat(json);
             })
             .catch((e) => {
               console.error('saveAramItem e', e);
@@ -147,6 +168,8 @@ var app = new Vue({
       saveAramItem(item) {
         // 更新する
         this.aram.items[item.index] = Object.assign({},item);
+        console.log("aram.items",  this.aram.items);
+
         return API.request("/api/aram", this.aram.items);
       },
       clickPlayStreamMp3() {
@@ -176,6 +199,22 @@ var app = new Vue({
             console.error('error', e);
             alert('エラー ' + e);
           });
-      }
+      },
+      colorIcon(c) {
+        return {"background-color": "rgb(" +c+ ")"};
+      },
+      effectIcon(e) {
+        return {"background-image": "url(" +e+ ")"};
+      },
+      selectColor(c){
+        this.aram.selectItem.color = c;
+
+        console.log("selectItem ", this.aram.selectItem);
+      },
+      selectEffect(e){
+        this.aram.selectItem.effect = e;
+
+        console.log("selectItem ", this.aram.selectItem);
+      }      
     }
   });

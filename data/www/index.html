@@ -51,8 +51,8 @@
                                 <td>{{item.timeHHMM}}</td>
                                 <td>{{item.title}}</td>
                                 <td>
-                                    <div class="aram-color-icon">{{item.color}}</div>
-                                    <div class="aram-effect-icon">{{item.effect}}</div>
+                                    <div class="aram-color-icon" :style="colorIcon(item.color)">{{item.color}}</div>
+                                    <div class="aram-effect-icon" :style="effectIcon(item.effect)">{{item.effect}}</div>
                                 </td>
                                 <td>
                                     <a class="button is-small is-danger" @click="clickAramDelete(item)">削除</a>
@@ -139,10 +139,21 @@
                         <label class="label">カラー</label>
                         <div class="control">
                             <!-- TODO カラーピッカー -->
-                            <div class="aramColorIcon">{{aram.selectItem.color}}</div>
-                            <button class="button is-small" @click="clickColorPicker">カラー選択</button>
+                            <div class="aram-color-icon" :style="colorIcon(aram.selectItem.color)">{{aram.selectItem.color}}</div>
+                            <div>
+                                <div v-for="c in aram.listColor" :key="c" class="aram-color-icon"　:style="colorIcon(c)" @click="selectColor(c)" ></div>                        
+                            </div>
                         </div>
                     </div>
+                    <div class="field">
+                        <label class="label">エフェクト</label>
+                        <div class="control">
+                            <div class="aram-effect-icon" :style="effectIcon(aram.selectItem.effect)">{{aram.selectItem.effect}}</div>
+                            <div>
+                                <div v-for="e in aram.listEffect" :key="e" class="aram-effect-icon" :style="effectIcon(e)" @click="selectEffect(e)"></div>
+                            </div>
+                        </div>
+                    </div>                        
                     <div class="field">
                         <label class="label">URL</label>
                         <div class="control">
