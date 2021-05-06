@@ -1,62 +1,3 @@
-class API {};
-
-API.request = (url, data) => {
-  return new Promise((resolut,reject) =>{
-    const param  = {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(data)
-    };
-    console.log('param', param);
-
-    fetch(url, param)
-      .then((res)=>{
-        return( res.json() );
-      })
-      .then((json)=>{
-        resolut(json);
-      })
-      .catch((e) => {
-        reject(e);
-      });
-  });
-};
-
-class API_TUBE_TO_MP3 {};
-API_TUBE_TO_MP3.API_HOST = 'http://35.202.184.164';
-API_TUBE_TO_MP3.API_DOWNLOAD = '/api/dl';
-API_TUBE_TO_MP3.API_STREAM = '/api/stream';
-
-API_TUBE_TO_MP3.getVideoId = (url) => {
-  // v=pDgflOcHNnM
-  if (url == null) {
-      return null;
-  }        
-  const m = url.match('v=(.*)');       
-  console.log(m);
-  if (m == null) {
-      return null;
-  }
-  return m[1];
-}
-
-API_TUBE_TO_MP3.convert = (videoId) => {
-  return new Promise((resolve,reject) => {
-      fetch(API_TUBE_TO_MP3.API_HOST + API_TUBE_TO_MP3.API_DOWNLOAD + '/' +videoId)
-          .then(response => {
-              return response.json();
-          })
-          .then(data => {  resolve(data) })
-          .catch(e => reject(e));
-  });
-}
-
-API_TUBE_TO_MP3.stream = (videoId) => {
-  return API_TUBE_TO_MP3.API_HOST + API_TUBE_TO_MP3.API_STREAM + '/' +videoId
-}
-
 Vue.use(window['vue-qriously']);
 
 var app = new Vue({
@@ -66,139 +7,163 @@ var app = new Vue({
       'vue-channel-color-picker': window['vue-channel-color-picker']
     },
     data: {
+      config: Config,
       title: "ConnectedDoll",
-      url: "http://connecteddoll.local",
-      isLedOn: false,
-      youtube: {
-        url: 'https://www.youtube.com/watch?v=1WTy2yqKI4w',
-        stream: 'http://35.202.184.164/api/stream/1WTy2yqKI4w'
-      },
-      volume: {
-        min: 0,
-        max: 100,
-        value: 10
-      },
-      color: {
-        type: "rgb",
-        channels: [0, 0, 0]
-      },
-      leds: [
-        {
-          type: "rgb",
-          channels: [0, 0, 0]
+      isActiveTab: "Aram",
+      qrCodeUrl: "http://connecteddoll.local",
+      aram: {
+        title: "編集",
+        selectItem: {
+          index: 0,
+          timeHHMM: "",
+          title: "",
+          playbackTime: "",
+          color: "0,0,0",
+          effect: "",
+          url: ""
         },
-        {
-          type: "rgb",
-          channels: [0, 0, 0]
+        defaultItem: {
+          index: 0,
+          timeHHMM: "",
+          title: "",
+          playbackTime: "",
+          color: "0,0,0",
+          effect: "",
+          url: ""
         },
-        {
-          type: "rgb",
-          channels: [0, 0, 0]
-        },
-        {
-          type: "rgb",
-          channels: [0, 0, 0]
-        }
-      ]
+        listTimeHHMM: [
+          "---",
+          "00:00","00:30",
+          "01:00","01:30",
+          "02:00","02:30",
+          "03:00","03:30",
+          "04:00","04:30",
+          "05:00","05:30",
+          "06:00","06:30",
+          "07:00","07:30",
+          "08:00","08:30",
+          "09:00","09:30",
+          "10:00","10:30",
+          "11:00","11:30",
+          "12:00","12:30",
+
+          "13:00","13:30",
+          "14:00","14:30",
+          "15:00","15:30",
+          "16:00","16:30",
+          "17:00","17:30",
+          "18:00","18:30",
+          "19:00","19:30",
+          "20:00","20:30",
+          "21:00","21:30",
+          "22:00","22:30",
+          "23:00","23:30",
+        ],
+        items: []
+      }
     },
     created: function() {
-      console.log('created');
-      // IPAddress 取得
-      API.request('/api/ip', {})
+      console.log('created', this.config);
+      // アラーム設定をロードする
+      this.loadAramJson();
+      // QRコード URL取得
+      this.setQRCodeURL();
+    },
+    watch:  {
+
+    },
+    methods: {
+      loadAramJson(){
+        API.request("/api/aram", [])
+          .then((json)=>{
+            console.log(json);
+            this.aram.items = Object.assign({},json);
+          })
+          .catch((e) => {
+            console.error(e);
+          });
+      },
+      clickTab(name) {
+        this.isActiveTab = name;
+      },
+      setQRCodeURL() {
+        // IPAddress 取得 して QRコード用のURLを設定する
+        API.request('/api/ip', {})
         .then((json)=>{
           console.log(json);
-          this.url = 'http://' + json['ip'];
+          this.qrCodeUrl = 'http://' + json['ip'];
         })
         .catch((e) => {
           console.error(e);
         });
-    },
-    watch:  {
-      'volume.value': function (newValue, oldValue) {
-        // console.log('volume.value', this.volume.value);
-        API.request('/api/volume', {'volume': this.volume.value/100})
-          .then((json)=>{
-            console.log(json);
+      },
+      clickModalToggle(id) {
+        const modal = document.getElementById(id);
+        modal.classList.toggle('is-active');
+      },
+      clickAramEdit(item) {
+        this.aram.title = "編集";
+
+        this.aram.selectItem = Object.assign({},item);
+
+        this.clickModalToggle("modal-aram-edit");
+      },
+      clickAramSave() {
+        console.log('clickAramSave', this.aram.selectItem);
+        this.saveAramItem(this.aram.selectItem)
+          .then((json) => {
+            console.log('saveAramItem result', json);
+            this.clickModalToggle("modal-aram-edit");
           })
           .catch((e) => {
-            console.error(e);
+            console.error('saveAramItem e', e);
+            alert('エラーが発生しました ' + e);
           });
-      }
-    },
-    methods: {
-      updateLedColor(color) {
-        this.color = color;
-        this.leds[0] = JSON.parse(JSON.stringify(color));
-        this.leds[1] = JSON.parse(JSON.stringify(color));
-        this.leds[2] = JSON.parse(JSON.stringify(color));
-        this.leds[3] = JSON.parse(JSON.stringify(color));
-        console.log('updateLedColor', this.leds, color);
       },
-      colorPickerOen(status){
-        console.log('colorPickerOen', status);
-        if (status == false) {
-          this.isLedOn = false;
-          this.clickLedToggle();
+      clickAramDelete(item){
+        this.aram.title = "削除";
+
+        const index = this.aram.selectItem.index;
+        const result = confirm(`${item.title} を 削除しますがよろしいですか？`);
+        if (result) {
+          // アラーム設定 リセット
+          this.aram.selectItem = Object.assign({},this.aram.defaultItem);
+          this.aram.selectItem.index = index;
+
+          // 保存処理
+          this.saveAramItem(this.aram.selectItem)
+            .then((result) => {
+              console.log('saveAramItem result', result);
+            })
+            .catch((e) => {
+              console.error('saveAramItem e', e);
+              alert('エラーが発生しました ' + e);
+            });
         }
       },
-      clickLedToggle() {        
-        // curl -X POST -H "Content-Type: application/json" -d '{"leds": ["255,255,255","255,255,255","255,255,255","255,255,255"]}' http://192.168.86.48/api/led
-        this.isLedOn = !this.isLedOn;
-        const data = {"leds":["0,0,0","0,0,0","0,0,0","0,0,0"]};
-        if (this.isLedOn) {
-          data['leds'][0] = this.leds[0]['channels'][0] + "," + this.leds[0]['channels'][1] + "," + this.leds[0]['channels'][2];
-          data['leds'][1] = this.leds[1]['channels'][0] + "," + this.leds[1]['channels'][1] + "," + this.leds[1]['channels'][2];
-          data['leds'][2] = this.leds[2]['channels'][0] + "," + this.leds[2]['channels'][1] + "," + this.leds[2]['channels'][2];
-          data['leds'][3] = this.leds[3]['channels'][0] + "," + this.leds[3]['channels'][1] + "," + this.leds[3]['channels'][2];
-        }
-        API.request("/api/led", data)
-          .then((json)=>{
-            console.log(json);
-          })
-          .catch((e) => {
-            console.error(e);
-          });
+      clickColorPicker() {
+        // TOTO カラーピッカー, プリセットの色とエフェクト選択
       },
-      clickPlayLocalMp3() {
-        const data = {'path': '/mp3/d3_IcaDhcDM.mp3'};
-        API.request("/api/play/mp3", data)
-          .then((json)=>{
-            console.log(json);
-          })
-          .catch((e) => {
-            console.error(e);
-          });
-      },
-      clickPlayUrlMp3() {
-        const data = {'url': 'https://file-examples-com.github.io/uploads/2017/11/file_example_MP3_700KB.mp3'};
-        API.request("/api/play/url/mp3", data)
-          .then((json)=>{
-            console.log(json);
-          })
-          .catch((e) => {
-            console.error(e);
-          });
-      },
-      clickPlayStopMp3() {
-        const data = {};
-        API.request("/api/stop/mp3", data)
-          .then((json)=>{
-            console.log(json);
-          })
-          .catch((e) => {
-            console.error(e);
-          });
+      saveAramItem(item) {
+        // 更新する
+        this.aram.items[item.index] = Object.assign({},item);
+        return API.request("/api/aram", this.aram.items);
       },
       clickPlayStreamMp3() {
+        // 視聴
+        if (this.aram.selectItem.url == ""){
+          return;
+        }
+
         // 変換サーバにアクセスして stream URL を取得する
-        const videoId = API_TUBE_TO_MP3.getVideoId(this.youtube.url);
+        const videoId = API_TUBE_TO_MP3.getVideoId(this.aram.selectItem.url);
         API_TUBE_TO_MP3.convert(videoId)
           .then(result => {
             // ストリーム URL 生成
-            this.youtube.stream = API_TUBE_TO_MP3.stream(videoId);
+            const streamURL = API_TUBE_TO_MP3.stream(videoId);
 
             // 再生
-            const data = {'url': this.youtube.stream};
+            const data = {'url': streamURL};
             API.request("/api/play/stream/mp3", data)
               .then((json)=>{
                 console.log(json);
@@ -211,6 +176,6 @@ var app = new Vue({
             console.error('error', e);
             alert('エラー ' + e);
           });
-      }  
+      }
     }
   });

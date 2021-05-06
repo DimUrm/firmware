@@ -1,4 +1,8 @@
 #include <Arduino.h>
+
+#include <core_version.h>
+#include <time.h>
+
 #include <ArduinoOSC.h>
 
 #include <FS.h>
@@ -73,6 +77,9 @@ AsyncWebServer webServer(HTTP_PORT);
 // LED D2
 #define D2 13
 
+// アラーム設定 ファイル
+#define ARAM_JSON_PATH "/www/aram.json"
+
 // D2 
 void setStatusLED(bool isON) {
   digitalWrite(D2, (isON)? HIGH : LOW);
@@ -103,6 +110,39 @@ void webServerSetup() {
       setStatusLED(true);
       IPAddress localIP = WiFi.localIP();
       String output = "{\"status\":\"OK\",\"ip\":\"" + localIP.toString() + "\"}";
+      request->send(200, "application/json", output);
+
+      setStatusLED(false);  
+    });
+    webServer.addHandler(handler);
+  }
+
+  {
+    // Aram 設定 保存
+    // curl -X POST -H "Content-Type: application/json" -d '[{index: 1,timeHHMM: "08:00",title: "おきてぇ", playbackTime: "0:39",color: "255,255,255",url: "https://www.youtube.com/watch?v=DvkRoXRbqFw"}]' http://connecteddoll.local/api/aram
+    // curl -X POST -H "Content-Type: application/json" -d '[]' http://connecteddoll.local/api/aram    
+    AsyncCallbackJsonWebHandler* handler = new AsyncCallbackJsonWebHandler("/api/aram", [](AsyncWebServerRequest *request, JsonVariant &json) {
+      setStatusLED(true);
+      JsonArray& aram = json.as<JsonArray>();
+      if (!aram.success())
+        Serial.println(F("Failed to read file, using default configuration"));
+
+      // SPIFFS ファイルとして保存する
+      Serial.printf("fileName: %s\n", ARAM_JSON_PATH);
+      Serial.printf("aram.size: %d\n", aram.size());
+      if (aram.size() > 0) {
+        File fw = spiffsUtil.open(ARAM_JSON_PATH, FILE_WRITE);
+        aram.printTo(fw);
+        fw.close();
+      }
+
+      String output = "[{}]";
+
+      // 読み込み
+      File fr = spiffsUtil.open(ARAM_JSON_PATH, FILE_READ);
+      output = fr.readString();
+      fr.close();
+
       request->send(200, "application/json", output);
 
       setStatusLED(false);  
@@ -520,6 +560,9 @@ void setup() {
 
   // OSC受信設定
   oscWiFiSetup();
+
+  // NTP設定
+  configTzTime("JST-9", "ntp.nict.jp", "ntp.jst.mfeed.ad.jp");
 }
 
 // OSC コマンド受付
@@ -564,8 +607,21 @@ void loopOscCmd() {
   }
 }
 
+// 日時取得
+void ntptime(){
+  time_t t;
+  struct tm *tm;
+  static const char *wd[7] = {"Sun","Mon","Tue","Wed","Thr","Fri","Sat"};
+
+  t = time(NULL);
+  tm = localtime(&t);
+  Serial.printf(" %04d/%02d/%02d(%s) %02d:%02d:%02d\n",
+        tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday,
+        wd[tm->tm_wday],
+        tm->tm_hour, tm->tm_min, tm->tm_sec);
+}
+
 void loop() {
-  // Serial.println("loop");
-  // delay(200);
+  // ntptime();
   loopOscCmd();
 }

@@ -11,3 +11,32 @@ h1 {
 .vc-chrome {
     margin: 0 auto;
 }
+
+.tab-contents .content {
+    display: none;
+}
+
+.tab-contents .content.is-active {
+    display: block;
+}
+
+.modal-content {
+    background-color: white;
+}
+
+.aram-color-icon, .aram-effect-icon {
+    display: inline-block;
+    margin: 5px auto;
+    width: 30px;
+    height: 30px;
+    background-color: black;
+
+    text-indent:100%;
+	white-space:nowrap;
+	overflow:hidden;
+}
+
+.aram-effect-icon {
+    background-image: url("effect_repetition.png");
+    background-size: 30px;
+}

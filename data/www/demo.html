@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ConnectedDoll</title>
+</head>
+<body>
+    <div id="app" class="container">
+        <div class="columns is-mobile">
+            <div class="column is-half is-offset-one-quarter">
+                <h1>{{ title }}</h1>
+            </div>
+        </div>
+        
+        <div class="columns is-mobile">
+            <div class="column is-half is-offset-one-quarter">
+                <p>VOLUME {{volume.value}}</p>
+                <p><vue-slider :min="volume.min" :max="volume.max" v-model="volume.value"></vue-slider></p>                
+            </div>
+        </div>        
+        <div class="columns is-mobile">
+            <div class="column is-half is-offset-one-quarter">
+                <p><input class="input is-normal" type='url' placeholder="YouTube URL" v-model='youtube.url'></p>
+                <p><img src='mp3-stream.png' @click='clickPlayStreamMp3'></p>
+            </div>
+        </div>    
+        <div class="columns is-mobile">
+            <div class="column is-half is-offset-one-quarter"><img src='mp3-stop.png' @click='clickPlayStopMp3'></div>
+        </div>
+        <!--
+        <div class="columns is-mobile">
+            <div class="column is-half is-offset-one-quarter"><img src='mp3-file.png' @click='clickPlayLocalMp3'></div>
+        </div>
+        <div class="columns">
+            <div class="column"><img src='mp3-url.png' @click='clickPlayUrlMp3'></div>
+        </div>
+        -->
+        <div class="columns is-mobile">
+            <div class="column is-half is-offset-one-quarter">
+                <p><channel-color-picker :color="color" @color-change="updateLedColor" @is-open='colorPickerOen'/></p>
+            </div> 
+        </div>
+        <div class="columns is-mobile">         
+            <div class="column is-half is-offset-one-quarter">
+                <p><img src='led-onoff.png' @click='clickLedToggle'></p>
+            </div>
+        </div>
+        
+        <!-- QRコード ダイアログ 表示ボタン -->
+        <div class="columns is-mobile">         
+            <div class="column is-half is-offset-one-quarter">
+                <p><a class="button" @click='clickModalQRcode'>QRコード</a></p>
+            </div>
+        </div> 
+
+        <!-- QRコード ダイアログ -->
+        <div id="modal-qr-code" class="modal">
+            <div class="modal-background"></div>
+            <div class="modal-content">
+              <p class="image is-4by3">
+                <p>{{ url }}</p>
+                <qriously :value="url" :size="200" />
+              </p>
+            </div>
+            <button class="modal-close is-large" aria-label="close" @click='clickModalQRcode'></button>
+        </div>
+
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.12"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue-qriously@1.1.1/dist/vue-qriously.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue-slider-component@latest/dist/vue-slider-component.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue-channel-color-picker@0.4.2/dist/VueChannelColorPicker.umd.min.js"></script>
+
+    <script src="demo.js"></script>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vue-slider-component@latest/theme/default.css">
+    <link rel="stylesheet" href="index.css">
+</body>
+</html>

@@ -8,55 +8,165 @@
 <body>
     <div id="app" class="container">
         <div class="columns is-mobile">
-            <div class="column is-half is-offset-one-quarter">
+            <div class="column">
                 <h1>{{ title }}</h1>
             </div>
         </div>
+
         <div class="columns is-mobile">
-            <div class="column is-half is-offset-one-quarter">
-                <p>VOLUME {{volume.value}}</p>
-                <p><vue-slider :min="volume.min" :max="volume.max" v-model="volume.value"></vue-slider></p>                
-            </div>
-        </div>        
-        <div class="columns is-mobile">
-            <div class="column is-half is-offset-one-quarter">
-                <p><input class="input is-normal" type='url' placeholder="YouTube URL" v-model='youtube.url'></p>
-                <p><img src='mp3-stream.png' @click='clickPlayStreamMp3'></p>
-            </div>
-        </div>    
-        <div class="columns is-mobile">
-            <div class="column is-half is-offset-one-quarter"><img src='mp3-stop.png' @click='clickPlayStopMp3'></div>
-        </div>
-        <!--
-        <div class="columns is-mobile">
-            <div class="column is-half is-offset-one-quarter"><img src='mp3-file.png' @click='clickPlayLocalMp3'></div>
-        </div>
-        <div class="columns">
-            <div class="column"><img src='mp3-url.png' @click='clickPlayUrlMp3'></div>
-        </div>
-        -->
-        <div class="columns is-mobile">
-            <div class="column is-half is-offset-one-quarter">
-                <p><channel-color-picker :color="color" @color-change="updateLedColor" @is-open='colorPickerOen'/></p>
-            </div> 
-        </div>
-        <div class="columns is-mobile">         
-            <div class="column is-half is-offset-one-quarter">
-                <p><img src='led-onoff.png' @click='clickLedToggle'></p>
-            </div>
-        </div>         
-        <div class="columns is-mobile">
-            <div class="column is-half is-offset-one-quarter">
-                <p>{{ url }}</p>
-                <qriously :value="url" :size="200" />
+            <div class="column">
+                <div class="tabs">
+                    <ul>
+                        <li v-bind:class="{ 'is-active': isActiveTab == 'Aram' }">
+                          <a @click="clickTab('Aram')">アラーム</a>
+                        </li>
+                        <li v-bind:class="{ 'is-active': isActiveTab == 'Music' }">
+                            <a @click="clickTab('Music')">音楽/ラジオ</a>
+                        </li>
+                        <li v-bind:class="{ 'is-active': isActiveTab == 'Setting' }">
+                            <a @click="clickTab('Setting')">設定</a>
+                        </li>
+                    </ul>
+                  </div>
             </div>
         </div>
+
+        <div class="columns is-mobile tab-contents">
+            <div class="column">
+                <div class="content" v-bind:class="{ 'is-active': isActiveTab == 'Aram' }">
+                    <!-- <h2>Aram</h2> -->
+                    <table class="table is-striped">
+                        <thead>
+                            <tr>
+                                <th>No.</th>
+                                <th>アラーム時間</th>
+                                <th>タイトル</th>
+                                <th>カラー / エフェクト</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="item in aram.items" :key="item.index">
+                                <td>{{(item.index+1)}}</td>
+                                <td>{{item.timeHHMM}}</td>
+                                <td>{{item.title}}</td>
+                                <td>
+                                    <div class="aram-color-icon">{{item.color}}</div>
+                                    <div class="aram-effect-icon">{{item.effect}}</div>
+                                </td>
+                                <td>
+                                    <a class="button is-small is-danger" @click="clickAramDelete(item)">削除</a>
+                                    <a class="button is-small is-primary" @click="clickAramEdit(item)">編集</a>
+                                </td>
+                            </tr>                                                                                                       
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="content" v-bind:class="{ 'is-active': isActiveTab == 'Music' }">
+                    <!-- <h2>Music</h2> -->
+                    <table class="table is-striped">
+                        <thead>
+                            <tr>
+                                <th>タイトル</th>
+                                <th>メモ</th>
+                                <th><a class="button is-small is-info">追加</a></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <!-- https://directory.shoutcast.com/ -->
+                                <td>Tsubaki Web Radio</td>
+                                <td>SHOUTcast</td>
+                                <td>
+                                    <a class="button is-small is-danger">削除</a>
+                                    <a class="button is-small is-primary">再生</a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>J-Pop Sakura</td>
+                                <td>SHOUTcast</td>
+                                <td>
+                                    <a class="button is-small is-danger">削除</a>
+                                    <a class="button is-small is-primary">再生</a>
+                                </td>
+                            </tr>                            
+                        </tbody>                        
+                    </table>
+                </div>
+
+                <div class="content" v-bind:class="{ 'is-active': isActiveTab == 'Setting' }">
+                    <!-- <h2>Setting</h2> -->
+                    <div class="box">
+                        <h2>QRコード</h2>
+                        <p>{{ qrCodeUrl }}</p>
+                        <qriously :value="qrCodeUrl" :size="100" />                        
+                    </div>
+                    <div class="box">
+                        <h2>バージョン</h2>
+                        <p>{{config.VERSION}}</p>
+                    </div>                    
+                </div>
+            </div>
+        </div>
+        
+        <!-- アラーム登録 -->
+        <div id="modal-aram-edit" class="modal">
+            <div class="modal-background"></div>
+            <div class="modal-card">
+                <header class="modal-card-head">
+                  <p class="modal-card-title">{{aram.title}}</p>
+                  <button class="delete" aria-label="close" @click='clickModalToggle("modal-aram-edit")'></button>
+                </header>
+                <section class="modal-card-body">
+                    <div class="field">
+                        <label class="label">アラーム時間</label>
+                        <div class="control">
+                            <div class="select">
+                                <select class="time-hh" v-model='aram.selectItem.timeHHMM'>
+                                  <option v-for="n in aram.listTimeHHMM" :key="n" :value="n">{{n}}</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label class="label">タイトル</label>
+                        <div class="control">
+                            <input class="input" type="text" placeholder="タイトル" v-model="aram.selectItem.title">
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label class="label">カラー</label>
+                        <div class="control">
+                            <!-- TODO カラーピッカー -->
+                            <div class="aramColorIcon">{{aram.selectItem.color}}</div>
+                            <button class="button is-small" @click="clickColorPicker">カラー選択</button>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label class="label">URL</label>
+                        <div class="control">
+                            <p><input class="input" type="text" placeholder="https://www.youtube.com/watch?v=xxxxxx" v-model="aram.selectItem.url"></p>
+                            <p><a class="button is-small is-primary" @click="clickPlayStreamMp3">視聴</a></p>
+                        </div>
+                    </div>                    
+                </section>
+                <footer class="modal-card-foot">
+                  <button class="button is-success" @click="clickAramSave">保存</button>
+                  <button class="button" @click='clickModalToggle("modal-aram-edit")'>キャンセル</button>
+                </footer>
+            </div>
+        </div>
+
     </div>
     <script src="https://cdn.jsdelivr.net/npm/vue@2.6.12"></script>
     <script src="https://cdn.jsdelivr.net/npm/vue-qriously@1.1.1/dist/vue-qriously.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/vue-slider-component@latest/dist/vue-slider-component.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/vue-channel-color-picker@0.4.2/dist/VueChannelColorPicker.umd.min.js"></script>
 
+    <script src="config.js"></script>
+    <script src="api.js"></script>
+    <script src="api_tube_to_mp3.js"></script>
     <script src="index.js"></script>
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.css">
